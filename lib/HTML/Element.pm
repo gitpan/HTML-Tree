@@ -1,14 +1,12 @@
 
 require 5;
-# Time-stamp: "2000-06-28 13:45:44 MDT"
+# Time-stamp: "2000-08-21 00:52:26 MDT"
 package HTML::Element;
-
-# TODO: make as_HTML be mindful of CDATA-content elements, and not ampquote text under them?
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
-# TODO: maybe alias ->destroy to ->delete ?
-# TODO: have use a HTML::Tagset or something (to write)
+# TODO: maybe alias ->destroy to ->delete, because I keep mixing them up ?
+# TODO: totally revamp docs.  Add examples.  Throw in my TPJ19 article as POD?
 
 =head1 NAME
 
@@ -145,17 +143,21 @@ Donald Knuth's I<The Art of Computer Programming, Volume 1>.)
 use strict;
 use Carp ();
 use HTML::Entities ();
+use HTML::Tagset ();
 use integer; # vroom vroom!
 
-use vars qw($VERSION
-            $html_uc
-            %emptyElement %optionalEndTag %linkElements %boolean_attr
-           );
+use vars qw($VERSION $html_uc $Debug);
 
-$VERSION = '1.56';
+$VERSION = '3.01';
+$Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
 my $nillio = [];
+
+*HTML::Element::emptyElement = \%HTML::Tagset::emptyElement; # legacy
+*HTML::Element::optionalEndTag = \%HTML::Tagset::optionalEndTag; # legacy
+*HTML::Element::linkElements = \%HTML::Tagset::linkElements; # legacy
+*HTML::Element::boolean_attr = \%HTML::Tagset::boolean_attr; # legacy
 
 # Constants for signalling back to the traverser:
 my $travsignal_package = __PACKAGE__ . '::_travsignal';
@@ -179,51 +181,6 @@ $html_uc = 0;
 #  to be uc'd
 
 # Elements that does not have corresponding end tags (i.e. are empty)
-%emptyElement   = map { $_ => 1 } qw(base link meta isindex
-                                     img br hr wbr
-                                     input area param
-                                     embed bgsound spacer
-                                     basefont col frame
-                                     ~comment ~literal
-                                     ~declaration ~pi
-                                    );
-%optionalEndTag = map { $_ => 1 } qw(p li dt dd); # option th tr td);
-
-# Elements that might contain links and the name of the link attribute
-%linkElements =
-(
- body   => 'background',
- base   => 'href',
- a      => 'href',
- img    => [qw(src lowsrc usemap)],   # lowsrc is a Netscape invention
- form   => 'action',
- input  => 'src',
-'link'  => 'href',          # need quoting since link is a perl builtin
- frame  => 'src',
- applet => 'codebase',
- area   => 'href',
-);
-      #TODO : update the above from Extor
-
-
-# These attributes are normally printed without showing the "='value'".
-# If there's just one such attribute for a given tag, just represent with
-# "tag => attribute"; otherwise, use "tag => {attr1 => 1, attr2 => 1}"
-%boolean_attr = (
- area   => 'nohref',
- dir    => 'compact',
- dl     => 'compact',
- hr     => 'noshade',
- img    => 'ismap',
- input  => { checked => 1, readonly => 1, disabled => 1 },
- menu   => 'compact',
- ol     => 'compact',
- option => 'selected',
-'select'=> 'multiple',
- td     => 'nowrap',
- th     => 'nowrap',
- ul     => 'compact',
-);
 
 #==========================================================================
 
@@ -541,6 +498,13 @@ Example output of C<$h-E<gt>all_attr()> :
 C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
 '_content', >I<[array-ref value]>.
 
+=item $h->all_attr_names()
+
+Like all_attr, but only returns the names of the attributes.
+
+Example output of C<$h-E<gt>all_attr()> :
+C<'_parent', '_tag', 'lang', '_content', >.
+
 =cut
 
 sub all_attr {
@@ -551,10 +515,19 @@ sub all_attr {
   #  should stay the same.
 }
 
+sub all_attr_names {
+  return keys %{$_[0]};
+}
+
 
 =item $h->all_external_attr()
 
 Like C<all_attr>, except that internal attributes are not present.
+
+=item $h->all_external_attr_names()
+
+Like C<all_external_attr_names>, except that internal attributes' names
+are not present.
 
 =cut
 
@@ -565,6 +538,14 @@ sub all_external_attr {
         (length($_) && substr($_,0,1) eq '_') ? () : ($_, $self->{$_}),
         keys %$self
        );
+}
+
+sub all_external_attr_names {
+  return
+    grep
+      !(length($_) && substr($_,0,1) eq '_'),
+      keys %{$_[0]}
+  ;
 }
 
 #==========================================================================
@@ -1065,6 +1046,110 @@ sub normalize_content {
   return;
 }
 
+=item $h->delete_ignorable_whitespace()
+
+This traverses under $h and deletes any text segments that are ignorable
+whitespace.
+
+=cut
+
+#==========================================================================
+
+sub delete_ignorable_whitespace {
+  # This doesn't delete all sorts of whitespace that won't actually
+  #  be used in rendering, tho -- that's up to the rendering application.
+  # For example:
+  #   <input type='text' name='foo'>
+  #     [some whitespace]
+  #   <input type='text' name='bar'>
+  # The WS between the two elements /will/ get used by the renderer.
+  # But here:
+  #   <input type='hidden' name='foo' value='1'>
+  #     [some whitespace]
+  #   <input type='text' name='bar' value='2'>
+  # the WS between them won't be rendered in any way, presumably.
+
+  #my $Debug =4;  
+  die "delete_ignorably_whitespace can be called only as an object method"
+   unless ref $_[0];
+
+  print "About to tighten up...\n" if $Debug > 2;
+  my(@to_do) = ($_[0]);  # Start off.
+  my($i, $sibs, $ptag, $this); # scratch for the loop...
+  while(@to_do) {
+    if(
+       ( $ptag = ($this = shift @to_do)->{'_tag'} ) eq 'pre'
+       or $HTML::Tagset::isCDATA_Parent{$ptag}
+    ) {
+      # block the traversal under those
+       print "Blocking traversal under $ptag\n" if $Debug;
+       next;
+    }
+    next unless($sibs = $this->{'_content'} and @$sibs);
+    for($i = $#$sibs; $i >= 0; --$i) { # work backwards thru the list
+      if(ref $sibs->[$i]) {
+        unshift @to_do, $sibs->[$i];
+        # yes, this happens in pre order -- we're going backwards
+        # thru this sibling list.  I doubt it actually matters, tho.
+        next;
+      }
+      next unless $sibs->[$i] =~ m<^\s+$>s; # it's /all/ whitespace
+    
+      print "Under $ptag whose canTighten ",
+          "value is ", 0 + $HTML::Element::canTighten{$ptag}, ".\n"
+       if $Debug > 3;
+
+      # It's all whitespace...
+      
+      if($i == 0) {
+        if(@$sibs == 1) { # I'm an only child
+          next unless $HTML::Element::canTighten{$ptag}; # parent
+        } else { # I'm leftmost of many
+          # if either my parent or sib are eligible, I'm good.
+          next unless
+           $HTML::Element::canTighten{$ptag} # parent
+           or
+            (ref $sibs->[1]
+             and $HTML::Element::canTighten{$sibs->[1]{'_tag'}} # right sib
+            );
+        }
+      } elsif ($i == $#$sibs) { # I'm rightmost of many
+        # if either my parent or sib are eligible, I'm good.
+        next unless
+           $HTML::Element::canTighten{$ptag} # parent
+           or
+            (ref $sibs->[$i - 1]
+            and $HTML::Element::canTighten{$sibs->[$i - 1]{'_tag'}} # left sib
+            )
+      } else { # I'm the piggy in the middle
+        # My parent doesn't matter -- it all depends on my sibs
+        next
+          unless
+            ref $sibs->[$i - 1] or ref $sibs->[$i + 1];
+         # if NEITHER sib is a node, quit
+         
+        next if
+          # bailout condition: if BOTH are INeligible nodes
+          #  (as opposed to being text, or being eligible nodes)
+            ref $sibs->[$i - 1]
+            and ref $sibs->[$i + 1]
+            and !$HTML::Element::canTighten{$sibs->[$i - 1]{'_tag'}} # left sib
+            and !$HTML::Element::canTighten{$sibs->[$i + 1]{'_tag'}} # right sib
+        ;
+      }
+      # Unknown tags aren't in canTighten and so AREN'T subject to tightening
+
+      print "  delendum: child $i of $ptag\n" if $Debug > 3;
+      splice @$sibs, $i, 1;
+    }
+     # end of the loop-over-children
+  }
+   # end of the while loop.
+  
+  return;
+}
+
+#--------------------------------------------------------------------------
 
 =item $h->insert_element($element, $implicit)
 
@@ -1097,7 +1182,7 @@ sub insert_element
     $pos->push_content($e);
 
     $self->{'_pos'} = $pos = $e
-      unless $emptyElement{$tag} || $e->{'_empty_element'};
+      unless $HTML::Element::emptyElement{$tag} || $e->{'_empty_element'};
 
     $pos;
 }
@@ -1148,6 +1233,8 @@ sub dump
 
 =item or $h->as_HTML($entities, $indent_char)
 
+=item or $h->as_HTML($entities, $indent_char, \%optional_end_tags)
+
 Returns a string representing in HTML the element and its
 children.  The optional argument C<$entities> specifies a string of
 the entities to encode.  For compatibility with previous versions,
@@ -1162,26 +1249,33 @@ feature is currently somewhat experimental.  But try it, and feel
 free to email me any bug reports.  (Note that output, although
 indented, is not wrapped.  Patches welcome.)
 
+If C<\%optional_end_tags> is specified and defined, it should be
+a reference to a hash that holds a true value for every tag name
+whose end tag is optional.  Defaults to
+C<\%HTML::Element::optionalEndTag>, which is an alias to 
+C<%HTML::Tagset::optionalEndTag>, which, at time of writing, contains
+true values for C<p, li, dt, dd>.  A useful value to pass is an empty
+hashref, C<{}>, which means that no end-tags are optional for this dump.
+Otherwise, possibly consider copying C<%HTML::Tagset::optionalEndTag> to a 
+hash of your own, adding or deleting values as you like, and passing
+a reference to that hash.
+
 =cut
 
 sub as_HTML
 {
-  my($self, $entities, $indent) = @_;
+  my($self, $entities, $indent, $omissible_map) = @_;
   #my $indent_on = defined($indent) && length($indent);
   my @html = ();
   
+  $omissible_map ||= \%HTML::Element::optionalEndTag;
   my $last_tag_tightenable = 0;
   my $this_tag_tightenable = 0;
-  
   my $nonindentable_ancestors = 0;  # count of nonindentible tags over us.
   
   my($tag, $node, $start, $depth); # per-iteration scratch
   
   if(defined($indent) && length($indent)) {
-    unless(defined $HTML::TreeBuilder::VERSION) {
-      require HTML::TreeBuilder or die "Can't require HTML::TreeBuilder";
-    }
-    #require Text::Wrap;
     $self->traverse(
       sub {
         ($node, $start, $depth) = @_;
@@ -1191,7 +1285,7 @@ sub as_HTML
            
            if($start) { # on the way in
              if(
-                ($this_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag})
+                ($this_tag_tightenable = $HTML::Element::canTighten{$tag})
                 and !$nonindentable_ancestors
                 and $last_tag_tightenable
              ) {
@@ -1207,24 +1301,18 @@ sub as_HTML
              $last_tag_tightenable = $this_tag_tightenable;
              
              ++$nonindentable_ancestors
-               if $tag eq 'pre' or $tag eq 'xmp' or
-                $tag eq 'listing' or $tag eq 'plaintext' or 
-                $tag eq 'script'
-             ;
+               if $tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag};             ;
              
-           } elsif (not($emptyElement{$tag} or $optionalEndTag{$tag})) {
+           } elsif (not($HTML::Element::emptyElement{$tag} or $omissible_map->{$tag})) {
              # on the way out
-             if($tag eq 'pre' or $tag eq 'xmp' or
-                $tag eq 'listing' or $tag eq 'plaintext' or
-                $tag eq 'script'
-             ) {
+             if($tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag}) {
                --$nonindentable_ancestors;
-               $last_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag};
+               $last_tag_tightenable = $HTML::Element::canTighten{$tag};
                push @html, $node->endtag;
                
              } else { # general case
                if(
-                  ($this_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag})
+                  ($this_tag_tightenable = $HTML::Element::canTighten{$tag})
                   and !$nonindentable_ancestors
                   and $last_tag_tightenable
                ) {
@@ -1244,8 +1332,13 @@ sub as_HTML
         } else {  # it's a text segment
         
           $last_tag_tightenable = 0;  # I guess this is right
-          HTML::Entities::encode_entities($node, $entities);
-            # that does magic things if $entities is undef
+          HTML::Entities::encode_entities($node, $entities)
+            # That does magic things if $entities is undef.
+           unless $HTML::Tagset::isCDATA_Parent{ $_[3]{'_tag'} };
+            # To keep from amp-escaping children of script et al.
+            # That doesn't deal with descendants; but then, CDATA
+            #  parents shouldn't /have/ descendants other than a
+            #  text children (or comments?)
           if($nonindentable_ancestors) {
             push @html, $node; # say no go
           } else {
@@ -1281,14 +1374,19 @@ sub as_HTML
             $tag = $node->tag;
             if($start) { # on the way in
               push(@html, $node->starttag($entities));
-            } elsif (not($emptyElement{$tag} or $optionalEndTag{$tag})) {
+            } elsif (not($HTML::Element::emptyElement{$tag} or $omissible_map->{$tag})) {
               # on the way out
               push(@html, $node->endtag);
             }
           } else {
             # simple text content
-            HTML::Entities::encode_entities($node, $entities);
-              # that does magic things if $entities is undef
+            HTML::Entities::encode_entities($node, $entities)
+              # That does magic things if $entities is undef.
+             unless $HTML::Tagset::isCDATA_Parent{ $_[3]{'_tag'} };
+              # To keep from amp-escaping children of script et al.
+              # That doesn't deal with descendants; but then, CDATA
+              #  parents shouldn't /have/ descendants other than a
+              #  text children (or comments?)
             push(@html, $node);
           }
          1; # keep traversing
@@ -1381,6 +1479,7 @@ sub starttag
     
     if($name eq '~comment') {
       if(ref($self->{'text'} || '') eq 'ARRAY') {
+        # Does this ever get used?  And is this right?
         return 
           "<!" .
           join(' ', map("--$_--", @{$self->{'text'}}))
@@ -1399,9 +1498,10 @@ sub starttag
         # Hm -- what to do if val is undef?
         # I suppose that shouldn't ever happen.
         if ($_ eq $val &&   # if attribute is boolean, for this element
-            exists($boolean_attr{$name}) &&
-            (ref($boolean_attr{$name}) ? $boolean_attr{$name}{$_} : 
-                                         $boolean_attr{$name} eq $_)
+            exists($HTML::Element::boolean_attr{$name}) &&
+            (ref($HTML::Element::boolean_attr{$name})
+              ? $HTML::Element::boolean_attr{$name}{$_}
+              : $HTML::Element::boolean_attr{$name} eq $_)
         ) {
             $tag .= $html_uc ? " \U$_" : " \L$_";
         } else { # non-boolean attribute
@@ -1430,146 +1530,8 @@ sub endtag
     $html_uc ? "</\U$_[0]->{'_tag'}>" : "</\L$_[0]->{'_tag'}>";
 }
 
-
+
 #==========================================================================
-
-=back
-
-=head1 THE TRAVERSER METHOD
-
-The C<traverse()> method is the most important general method for accessing
-the information in a tree.  It accepts the following syntaxes:
-
-=over
-
-=item $h->traverse(\&callback)
-
-=item or $h->traverse(\&callback, $ignore_text)
-
-=item or $h->traverse([\&pre_callback,\&post_callback], $ignore_text)
-
-=back
-
-These all mean to traverse the element and all of its children.  That
-is, this method starts at node $h, "pre-order visits" $h, traverses its
-children, and then will "post-order visit" $h.  "Visiting" means that
-the callback routine is called, with these arguments:
-
-    $_[0] : the node (element or text segment),
-    $_[1] : a startflag, and
-    $_[2] : the depth
-
-If the $ignore_text parameter is given and true, then the pre-order
-call I<will not> be happen for text content.
-
-The startflag is 1 when we enter a node (i.e., in pre-order calls) and
-0 when we leave the node (in post-order calls).
-
-Note, however, that post-order calls don't happen for nodes that are
-text segments or are elements that are prototypically empty (like "br",
-"hr", etc.).
-
-If we visit text nodes (i.e., unless $ignore_text is given and true),
-then when text nodes are visited, we will also pass two extra
-arguments to the callback:
-
-    $_[3] : the element that's the parent
-             of this text node
-    $_[4] : the index of this text node
-             in its parent's content list
-
-Note that you can specify that the pre-order routine can
-be a different routine from the post-order one:
-
-    $h->traverse([\&pre_callback,\&post_callback], ...);
-
-You can also specify that no post-order calls are to be made,
-by providing a false value as the post-order routine:
-
-    $h->traverse([ \&pre_callback,0 ], ...);
-
-And similarly for suppressing pre-order callbacks:
-
-    $h->traverse([ 0,\&post_callback ], ...);
-
-Note that these two syntaxes specify the same operation:
-
-    $h->traverse([\&foo,\&foo], ...);
-    $h->traverse( \&foo       , ...);
-
-The return values from calls to your pre- or post-order 
-routines are significant, and are used to control recursion
-into the tree.
-
-These are the values you can return, listed in descending order
-of my estimation of their usefulness:
-
-=over
-
-=item HTML::Element::OK, 1, or any other true value
-
-...to keep on traversing.
-
-Note that C<HTML::Element::OK> et
-al are constants.  So if you're running under C<use strict>
-(as I hope you are), and you say:
-C<return HTML::Element::PRUEN>
-the compiler will flag this as an error (an unallowable
-bareword, specifically), whereas if you spell PRUNE correctly,
-the compiler will not complain.
-
-=item undef, 0, '0', '', or HTML::Element::PRUNE
-
-...to block traversing under the current element's content.
-(This is ignored if received from a post-order callback,
-since by then the recursion has already happened.)
-If this is returned by a pre-order callback, no
-post-order callback for the current node will happen.
-(Recall that if your callback exits with just C<return;>,
-it is returning undef -- at least in scalar context, and
-C<traverse> always calls your callbacks in scalar context.)
-
-=item HTML::Element::ABORT
-
-...to abort the whole traversal immediately.
-This is often useful when you're looking for just the first
-node in the tree that meets some criterion of yours.
-
-=item HTML::Element::PRUNE_UP
-
-...to abort continued traversal into this node and its parent
-node.  No post-order callback for the current or parent
-node will happen.
-
-=item HTML::Element::PRUNE_SOFTLY
-
-Like PRUNE, except that the post-order call for the current
-node is not blocked.
-
-=back
-
-Almost every task to do with extracting information from a tree can be
-expressed in terms of traverse operations (usually in only one pass,
-and usually paying attention to only pre-order, or to only
-post-order), or operations based on traversing. (In fact, many of the
-other methods in this class are basically calls to traverse() with
-particular arguments.)
-
-The source code for HTML::Element and HTML::TreeBuilder contain
-several examples of the use of the "traverse" method to gather
-information about the content of trees and subtrees.
-
-(Note: you should not change the structure of a tree I<while> you are
-traversing it.)
-
-(Note also that the existence of the C<traverse> method doesn't mean
-you can't write your own recursive subs to traverse the tree.
-Sometimes using C<traverse> makes for clearer code, and sometimes it
-doesn't.)
-
-=cut
-#'
-
 # This, ladies and germs, is an iterative implementation of a
 # recursive algorithm.  DON'T TRY THIS AT HOME.
 # Basically, the algorithm says:
@@ -1651,7 +1613,7 @@ sub traverse {
          and ref($this) # sanity
          and not(
                  $this->{'_empty_element'}
-                 || $emptyElement{$this->{'_tag'} || ''}
+                 || $HTML::Element::emptyElement{$this->{'_tag'} || ''}
                 ) # things that don't get post-order callbacks
       ) {
         shift @I;
@@ -1725,7 +1687,7 @@ sub traverse {
           if(ref($this)
              and
              not($this->{'_empty_element'}
-                 || $emptyElement{$this->{'_tag'} || ''})
+                 || $HTML::Element::emptyElement{$this->{'_tag'} || ''})
           ) {
             # push a dummy empty content list just to trigger a post callback
             unshift @I, -1;
@@ -1759,7 +1721,7 @@ sub traverse {
        not( # ...except for those which...
          not($content_r = $this->{'_content'} and @$content_r)
             # ...have empty content lists...
-         and $this->{'_empty_element'} || $emptyElement{$this->{'_tag'} || ''}
+         and $this->{'_empty_element'} || $HTML::Element::emptyElement{$this->{'_tag'} || ''}
             # ...and that don't get post-order callbacks
        )
     ) {
@@ -1770,6 +1732,9 @@ sub traverse {
   }
   return $start;
 }
+
+
+=back
 
 =head1 SECONDARY STRUCTURAL METHODS
 
@@ -2328,6 +2293,7 @@ sub look_down {
         unless ref $_[$i] eq 'CODE';
       push @criteria, $_[ $i++ ];
     } else {
+      Carp::croak "param list to look_down ends in a key!" if $i == $#_;
       push @criteria, [ lc($_[$i]), 
                         defined($_[$i+1])
                           ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
@@ -2401,6 +2367,7 @@ sub look_up {
         unless ref $_[$i] eq 'CODE';
       push @criteria, $_[ $i++ ];
     } else {
+      Carp::croak "param list to look_up ends in a key!" if $i == $#_;
       push @criteria, [ lc($_[$i]), 
                         defined($_[$i+1])
                           ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
@@ -2446,6 +2413,11 @@ sub look_up {
 
 #--------------------------------------------------------------------------
 
+=item $h->traverse(...options...)
+
+Lengthy discussion of HTML::Element's unnecessary and confusing
+C<traverse> method has been moved to a separate file:
+L<HTML::Element::traverse>
 
 =item $h->attr_get_i('attribute')
 
@@ -2589,7 +2561,7 @@ sub extract_links
           $tag = $self->{'_tag'};
           return 1 if $wantType && !$wantType{$tag};  # if we're selective
   
-          if(defined(  $link_attrs = $linkElements{$tag}  )) {
+          if(defined(  $link_attrs = $HTML::Element::linkElements{$tag}  )) {
             # If this is a tag that has any link attributes,
             #  look over possibly present link attributes,
             #  saving the value, if found.
@@ -2598,8 +2570,7 @@ sub extract_links
                 push(@links, [$val, $self])
               }
             }
-          }
-  
+	  }
           1; # return true, so we keep recursing
         },
         undef
@@ -2954,7 +2925,8 @@ calls the superclass method is not so bad, tho.)
 
 =head1 SEE ALSO
 
-L<HTML::AsSubs>, L<HTML::TreeBuilder>
+L<HTML::TreeBuilder>; L<HTML::AsSubs>; L<HTML::Tagset>; 
+and, for the morbidly curious, L<HTML::Element::traverse>.
 
 =head1 COPYRIGHT
 
@@ -3024,5 +2996,10 @@ include olives, peperoncini, tomato wedges.
 Variations on this recipe consist of adding or substituting other
 spices.  The garbanzos, tahini, lemon juice, and oil are the only really
 core ingredients, and note that their quantities are approximate.
+
+For more good recipes along these lines, see:
+  Karaoglan, Aida.  1992.  /Food for the Vegetarian/.  Interlink Books,
+  New York.  ISBN 1-56656-105-1.
+  http://www.amazon.com/exec/obidos/ASIN/1566561051/
 
 # End

@@ -1,4 +1,56 @@
-# Time-stamp: "2000-06-28 13:49:46 MDT"
+# Time-stamp: "2000-08-21 00:37:58 MDT"
+
+2000-08-20   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.01
+
+   Now depends on HTML::Tagset for data tables of HTML elements and
+   their characteristics.
+
+   Version numbers for HTML::TreeBuilder and HTML::Element, as well as
+   for the package, moved forward to 3.01.
+
+   Minor changes to HTML::TreeBuilder's docs.
+
+   HTML::TreeBuilder now knows not to amp-decode text children of
+   CDATA-parent elements.  Also exceptionally stores comments under
+   CDATA-parent elements.
+
+   TreeBuilder should now correctly parse documents with frameset
+   elements.  Tricky bunch of hacks.
+
+   TreeBuilder now ignores those pointless "x-html" tags that a
+   certain standards-flouting monopolistic American software/OS
+   company's mailer wraps its HTML in.
+
+   Introduced "tweaks" in HTML::TreeBuilder -- an experimental
+   (and quite undocumented) feature to allow specifying callbacks
+   to be called when specific elements are closed; makes possible
+   rendering (or otherwise scanning and/or manipulating) documents
+   as they are being parsed.  Inspired by Michel Rodriguez's clever
+   XML::Twig module.  Until I document this, email me if you're
+   interested.
+
+   HTML::Element's as_HTML now knows not to amp-escape children of
+   CDATA-parent elements.  Thanks to folks who kept reminding me about this.
+
+   HTML::Element's as_HTML can now take an optional parameter
+   specifying which non-empty elements will get end-tags omitted.
+
+   HTML::Element's traverse's docs moved into separate POD,
+   HTML::Element::traverse.
+
+   Added HTML::Element methods all_attr_names and
+   all_external_attr_names.  Fixed bug in all_external_attr.
+
+   Added HTML::Element method delete_ignorable_whitespace.
+   (Actually just moved from HTML::TreeBuilder, where it was
+   undocumented, and called tighten_up.)
+
+   Adding a bit of sanity checking to Element's look_down, look_up.
+
+   Added some formfeeds to the source of Element and TreeBuilder,
+   to make hardcopy a bit more readable.
 
 2000-06-28   Sean M. Burke <sburke@cpan.org>
 

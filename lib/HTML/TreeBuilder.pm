@@ -1,10 +1,42 @@
 
 require 5;
-# Time-stamp: "2000-05-18 23:41:36 MDT"
+# Time-stamp: "2000-08-20 23:57:08 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
 # Hm, but TreeBuilder wouldn't be subclassable, then.
+
+# TODO: document _store_*, and make methods for them.
+# TODO: document tweaks?
+# TODO: deprecate subclassing TreeBuilder?
+
+use strict;
+use vars qw(@ISA $VERSION $Debug);
+$VERSION = '3.01';
+$Debug = 0 unless defined $Debug;
+
+use HTML::Entities ();
+use HTML::Tagset ();
+
+use HTML::Element ();
+use HTML::Parser ();
+@ISA = qw(HTML::Element HTML::Parser);
+ # This looks schizoid, I know.
+ # It's not that we ARE an element AND a parser.
+ # We ARE an element, but one that knows how to handle signals
+ #  (method calls) from Parser in order to elaborate its subtree.
+
+# Legacy aliases:
+# *HTML::TreeBuilder::isKnown = \%HTML::Tagset::isKnown;
+*HTML::TreeBuilder::canTighten = \%HTML::Tagset::canTighten;
+*HTML::TreeBuilder::isHeadElement = \%HTML::Tagset::isHeadElement;
+*HTML::TreeBuilder::isBodyElement = \%HTML::Tagset::isBodyElement;
+*HTML::TreeBuilder::isPhraseMarkup = \%HTML::Tagset::isPhraseMarkup;
+*HTML::TreeBuilder::isHeadOrBodyElement = \%HTML::Tagset::isHeadOrBodyElement;
+*HTML::TreeBuilder::isList = \%HTML::Tagset::isList;
+*HTML::TreeBuilder::isTableElement = \%HTML::Tagset::isTableElement;
+*HTML::TreeBuilder::isFormElement = \%HTML::Tagset::isFormElement;
+*HTML::TreeBuilder::p_closure_barriers = \@HTML::Tagset::p_closure_barriers;
 
 =head1 NAME
 
@@ -60,23 +92,23 @@ interest.
 The following methods native to HTML::TreeBuilder all control how
 parsing takes place; they should be set I<before> you try parsing into
 the given object.  You can set the attributes by passing a TRUE or
-FALSE value as argument.  E.g., $p->implicit_tags returns the current
-setting for the implicit_tags option, $p->implicit_tags(1) turns that
-option on, and $p->implicit_tags(0) turns it off.
+FALSE value as argument.  E.g., $root->implicit_tags returns the current
+setting for the implicit_tags option, $root->implicit_tags(1) turns that
+option on, and $root->implicit_tags(0) turns it off.
 
 =over 4
 
-=item $p->implicit_tags(value)
+=item $root->implicit_tags(value)
 
 Setting this attribute to true will instruct the parser to try to
 deduce implicit elements and implicit end tags.  If it is false you
 get a parse tree that just reflects the text as it stands, which is
-unlikely to be useful for anything but quick and dirty parsing.
+unlikely to be useful for anything but quick and dirty parsing.  (And, in current versions, $root->
 Default is true.
 
 Implicit elements have the implicit() attribute set.
 
-=item $p->implicit_body_p_tag(value)
+=item $root->implicit_body_p_tag(value)
 
 This controls an aspect of implicit element behavior, if implicit_tags
 is on:  If a text element (PCDATA) or a phrasal element (such as
@@ -88,27 +120,27 @@ behaved.)  But if implicit_body_p_tag is false, nothing is implicated
 -- the PCDATA or phrasal element is simply placed under
 "E<lt>bodyE<gt>".  Default is false.
 
-=item $p->ignore_unknown(value)
+=item $root->ignore_unknown(value)
 
 This attribute controls whether unknown tags should be represented as
 elements in the parse tree, or whether they should be ignored. 
 Default is true (to ignore unknown tags.)
 
-=item $p->ignore_text(value)
+=item $root->ignore_text(value)
 
 Do not represent the text content of elements.  This saves space if
 all you want is to examine the structure of the document.  Default is
 false.
 
-=item $p->ignore_ignorable_whitespace(value)
+=item $root->ignore_ignorable_whitespace(value)
 
-If set to true, TreeBuilder will try to delete (and/or to avoid
-creating) ignorable whitespace text nodes in the tree.  Default is
+If set to true, TreeBuilder will try to avoid
+creating ignorable whitespace text nodes in the tree.  Default is
 true.  (In fact, I'd be interested in hearing if there's ever a case
 where you need this off, or where leaving it on leads to incorrect
 behavior.)
 
-=item $p->warn(value)
+=item $root->warn(value)
 
 This determines whether syntax errors during parsing should generate
 warnings, emitted via Perl's C<warn> function.
@@ -142,15 +174,18 @@ of being just a generic SGML parser with HTML DTD rules plugged in.
 
 =head1 BUGS
 
-* Currently, it's assumed that "HTML" is the top node in the tree, and
-that "HEAD" and "BODY" must be right under "HTML".  Framesets are
-therefore coerced into being under "BODY", even if the document in
-question has the "BODY" I<inside> a "NOFRAMES" element. This may
-change in a future version, I<particularly> if anyone points out a
-case where this is troublesome for them.
+* Hopefully framesets behave correctly now.  Email me if you find a
+strange parse of documents with framesets.
 
 * Bad HTML code will, often as not, make for a bad parse tree. 
 Regrettable, but unavoidably true.
+
+* If you're running with implicit_tags off (God help you!), consider
+that $tree->content_list probably contains the tree or grove from the
+parse, and not $tree itself (which will, oddly enough, be an implicit
+'html' element).  This seems counter-intuitive and problematic; but
+seeing as how almost no HTML ever parses correctly with implicit_tags
+off, this interface oddity seems the least of your problems.
 
 =head1 BUG REPORTS
 
@@ -165,7 +200,7 @@ going astray, and how you would prefer that it work instead.
 
 =head1 SEE ALSO
 
-L<HTML::Parser>, L<HTML::Element>
+L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
 
 =head1 COPYRIGHT
 
@@ -181,178 +216,16 @@ Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
 
 =cut
 
-use HTML::Entities ();
-
-use strict;
-use vars qw(@ISA $VERSION $Debug
-            %isHeadElement %isBodyElement %isPhraseMarkup
-            %isHeadOrBodyElement
-            %isList %isTableElement %isFormElement
-            %isKnown %canTighten
-            @p_closure_barriers
-           );
-
-$Debug = 0 unless defined $Debug;
-
-require HTML::Element;
-require HTML::Parser;
-@ISA = qw(HTML::Element HTML::Parser);
- # This looks schizoid, I know.
- # It's not that we ARE an element AND a parser.
- # We ARE an element, but one that knows how to handle signals
- #  (method calls) from Parser in order to elaborate its subtree.
-$VERSION = '2.97';
-
 #==========================================================================
-# List of all elements from Extensible HTML version 1.0 Transitional DTD:
-#
-#   a abbr acronym address applet area b base basefont bdo big
-#   blockquote body br button caption center cite code col colgroup
-#   dd del dfn dir div dl dt em fieldset font form h1 h2 h3 h4 h5 h6
-#   head hr html i iframe img input ins isindex kbd label legend li
-#   link map menu meta noframes noscript object ol optgroup option p
-#   param pre q s samp script select small span strike strong style
-#   sub sup table tbody td textarea tfoot th thead title tr tt u ul
-#   var
-#
-# Varia from Mozilla source internal table of tags:
-#   Implemented:
-#     xmp listing wbr nobr frame frameset noframes ilayer
-#     layer nolayer spacer embed multicol
-#   But these are unimplemented:
-#     sound??  keygen??  server??
-# Also seen here and there:
-#     marquee??  app??  (both unimplemented)
-#==========================================================================
-
-%isPhraseMarkup = map { $_ => 1 } qw(
-  span abbr acronym q sub sup
-  cite code em kbd samp strong var dfn strike
-  b i u s tt small big 
-  a img br
-  wbr nobr blink
-  font basefont bdo
-  spacer embed noembed
-);  # had: center, hr, table
-
-# Elements that should be present only in the head
-%isHeadElement = map { $_ => 1 }
- qw(title base link meta isindex script style object bgsound);
-
-%isList         = map { $_ => 1 } qw(ul ol dir menu);
-%isTableElement = map { $_ => 1 }
- qw(tr td th thead tbody tfoot caption col colgroup);
-
-%isFormElement  = map { $_ => 1 }
- qw(input select option optgroup textarea button label);
-
-# Elements that should be present only in/under the body
-%isBodyElement = map { $_ => 1 } qw(
-  h1 h2 h3 h4 h5 h6
-  p div pre plaintext address blockquote
-  xmp listing
-  center
-
-  multicol
-  frame frameset noframes
-  iframe ilayer nolayer
-  bgsound
-
-  hr
-  ol ul dir menu li
-  dl dt dd
-  ins del
-  
-  fieldset legend
-  
-  map area
-  applet param object
-  isindex script noscript
-  table
-  center
-  form
- ),
- keys %isFormElement,
- keys %isPhraseMarkup,   # And everything phrasal
- keys %isTableElement,
-;
-
-# Elements that can be present in the head or the body.
-%isHeadOrBodyElement = map { $_ => 1 }
-  qw(script isindex style object map area param noscript bgsound);
-  # i.e., if we find 'script' in the 'body' or the 'head', don't freak out.
-
-
-%isKnown = (%isHeadElement, %isBodyElement,
-  map{$_=>1} qw(head body html ~comment ~pi ~directive ~literal)
-);
- # that should be all known tags ever ever
-#print join(' ',%isKnown), "\n";
-
-
-%canTighten = %isKnown;
-delete @canTighten{keys(%isPhraseMarkup), 'input', 'select'};
-  # xmp, listing, plaintext, and pre  are untightenable, but
-  #   in a /really/ special way that we hardcode in, later.
-@canTighten{'hr','br'} = (1,1);
- # exceptional 'phrasal' things that ARE subject to tightening.
-
-# The one case where I can think of my tightening rules failing is:
-#  <p>foo bar<center> <em>baz quux</em> ...
-#                    ^-- that would get deleted.
-# But that's pretty gruesome code anyhow.  You gets what you pays for.
-
-#==========================================================================
-
-# When we see a <p> token, we go lookup up the lineage for a <p> we might
-# have to minimize.  At first sight, we might say that if there's a <p>
-# anywhere in the lineage of this new <p>, it should be closed.  But
-# that's wrong.  Consider this document:
-#
-# <html>
-#   <head>
-#     <title>foo</title>
-#   </head>
-#   <body>
-#     <p>foo
-#       <table>
-#         <tr>
-#           <td>
-#              foo
-#              <p>bar
-#           </td>
-#         </tr>
-#       </table>
-#     </p>
-#   </body>
-# </html>
-#
-# The second p is quite legally inside a much higher p.
-#
-# My formalization of the reason why this is legal, but <p>foo<p>bar</p></p>
-# isn't, is that something about the table constitutes a "barrier" to the
-# application of the rule about what p must minimize.
-# 
-# And here is the list of all such barrier-tags:
-@p_closure_barriers = qw(
-  li blockquote
-  ul ol menu dir
-  dl dt dd
-  td th tr table caption
- );
-
-# In an ideal world (i.e., XHTML) we wouldn't have to bother with any of this
-# monkey business of barriers to minimization!
-
-#==========================================================================
-
-sub new {
+
+sub new { # constructor!
   my $class = shift;
   $class = ref($class) || $class;
 
   my $self = HTML::Element->new('html');  # Initialize HTML::Element part
 
   {
+    # A hack for certain strange versions of Parser:
     my $other_self = HTML::Parser->new();
     %$self = (%$self, %$other_self);              # copy fields
       # Yes, multiple inheritance is messy.  Kids, don't try this at home.
@@ -372,14 +245,19 @@ sub new {
   $self->{'_tighten'} = 1;
     # whether ignorable WS in this tree should be deleted
 
-  $self->{'_ignore_unknown'} = 1;
-  $self->{'_ignore_text'}    = 0;
-  $self->{'_warn'}           = 0;
+  $self->{'_ignore_unknown'}     = 1;
+  $self->{'_ignore_text'}        = 0;
+  $self->{'_warn'}               = 0;
+  $self->{'_store_comments'}     = 0;
+  $self->{'_store_pis'}          = 0;
+  $self->{'_store_declarations'} = 0;
 
   # Parse attributes passed in as arguments
-  my %attr = @_;
-  for (keys %attr) {
-    $self->{"_$_"} = $attr{$_};
+  if(@_) {
+    my %attr = @_;
+    for (keys %attr) {
+      $self->{"_$_"} = $attr{$_};
+    }
   }
 
   # rebless to our class
@@ -421,16 +299,26 @@ sub warning {
 }
 
 #==========================================================================
-
+
 sub start {
+    return if $_[0]{'_stunted'};
+    
+  # Accept a signal from HTML::Parser for start-tags.
     my($self, $tag, $attr) = @_;
     # Parser passes more, actually:
     #   $self->start($tag, $attr, $attrseq, $origtext)
     # But we can merrily ignore $attrseq and $origtext.
 
-    my $pos  = $self->{'_pos'};
-    $pos = $self unless defined $pos;
+    if($tag eq 'x-html') {
+      print "Ignoring open-x-html tag.\n" if $Debug;
+      # inserted by some lame code-generators.
+      return;    # bypass tweaking.
+    }
 
+    my $ptag = (
+                my $pos  = $self->{'_pos'} || $self
+               )->{'_tag'};
+    my $already_inserted;
     my($indent);
     if($Debug) {
       # optimization -- don't figure out indenting unless we're in debug mode
@@ -444,14 +332,13 @@ sub start {
     #  $indent = ' ';
     }
     
-    my $ptag = $pos->{'_tag'};
     #print $indent, "POS: $pos ($ptag)\n" if $Debug > 2;
     
     my $e = HTML::Element->new($tag, %$attr); # in that class, not this class!
     
     
     # Some prep -- custom messiness for those damned tables...
-    if($self->{'_implicit_tags'} and !$isTableElement{$tag}) {
+    if($self->{'_implicit_tags'} and !$HTML::TreeBuilder::isTableElement{$tag}) {
       if ($ptag eq 'table') {
         print $indent,
           " * Phrasal \U$tag\E right under TABLE makes an implicit TR and TD\n"
@@ -475,7 +362,7 @@ sub start {
          if $Debug > 1;
 
     #----------------------------------------------------------------------
-    } elsif ($isHeadOrBodyElement{$tag}) {
+    } elsif ($HTML::TreeBuilder::isHeadOrBodyElement{$tag}) {
         if ($pos->is_inside('body')) { # all is well
           print $indent,
             " * ambilocal element \U$tag\E is fine under BODY.\n"
@@ -513,23 +400,25 @@ sub start {
         }
 
     #----------------------------------------------------------------------
-    } elsif ($isBodyElement{$tag}) {
+    } elsif ($HTML::TreeBuilder::isBodyElement{$tag}) {
 
         # Ensure that we are within <body>
         if ($pos->is_inside('head')) {
             print $indent,
               " * body-element \U$tag\E minimizes HEAD, makes implicit BODY.\n"
              if $Debug > 1;
-            $pos = $self->{'_pos'} = $self->{'_body'}; # yes, needs updating
-            die "Where'd my body go?" unless ref $pos;
-            $ptag = $pos->tag; # yes, needs updating
+            $ptag = (
+              $pos = $self->{'_pos'} = $self->{'_body'} # yes, needs updating
+                || die "Where'd my body go?"
+            )->{'_tag'}; # yes, needs updating
         } elsif (!$pos->is_inside('body')) {
             print $indent,
               " * body-element \U$tag\E makes implicit BODY.\n"
              if $Debug > 1;
-            $pos = $self->{'_pos'} = $self->{'_body'}; # yes, needs updating
-            die "Where'd my body go?" unless ref $pos;
-            $ptag = $pos->tag; # yes, needs updating
+            $ptag = (
+              $pos = $self->{'_pos'} = $self->{'_body'} # yes, needs updating
+                || die "Where'd my body go?"
+            )->{'_tag'}; # yes, needs updating
         }
          # else OK.
 
@@ -543,7 +432,7 @@ sub start {
         ) {
             # Can't have <p>, <h#> or <form> inside these
             $self->end([qw(p h1 h2 h3 h4 h5 h6 pre textarea)],
-                       @p_closure_barriers    # used to be just 'li'!
+                       @HTML::TreeBuilder::p_closure_barriers # used to be just li!
                       );
             
         } elsif ($tag eq 'ol' or $tag eq 'ul' or $tag eq 'dl') {
@@ -557,23 +446,26 @@ sub start {
             }
         } elsif ($tag eq 'li') { # list item
             # Get under a list tag, one way or another
-            $self->end(\'*', keys %isList) || $self->insert_element('ul', 1); #'
+            $self->end(\'*', keys %HTML::TreeBuilder::isList)
+             || $self->insert_element('ul', 1); #'
             
         } elsif ($tag eq 'dt' || $tag eq 'dd') {
             # Get under a DL, one way or another
             $self->end(\'*', 'dl') || $self->insert_element('dl', 1); #'
             
-        } elsif ($isFormElement{$tag}) {
-            unless($pos->is_inside('form')) {
+        } elsif ($HTML::TreeBuilder::isFormElement{$tag}) {
+            if($self->{'_ignore_formies_outside_form'}  # TODO: document this
+               and not $pos->is_inside('form')
+            ) {
                 print $indent,
                   " * ignoring \U$tag\E because not in a FORM.\n"
                   if $Debug > 1;
-                return;
+                return;    # bypass tweaking.
             }
-            if ($tag eq 'option') {
+            if($tag eq 'option') {
                 # return unless $ptag eq 'select';
                 $self->end(\'option'); #'
-                $ptag = $self->pos->tag;
+                $ptag = ($self->{'_pos'} || $self)->{'_tag'};
                 unless($ptag eq 'select' or $ptag eq 'optgroup') {
                     print $indent, " * \U$tag\E makes an implicit SELECT.\n"
                        if $Debug > 1;
@@ -582,7 +474,7 @@ sub start {
                      # is $pos's value used after this?
                 }
             }
-        } elsif ($isTableElement{$tag}) {
+        } elsif ($HTML::TreeBuilder::isTableElement{$tag}) {
             
             $self->end(\$tag, 'table'); #'
             # Hmm, I guess this is right.  To work it out:
@@ -602,7 +494,7 @@ sub start {
                 $pos = $self->insert_element('table', 1);
                  # is $pos's value used after this?
             }
-        } elsif ($isPhraseMarkup{$tag}) {
+        } elsif ($HTML::TreeBuilder::isPhraseMarkup{$tag}) {
             if ($self->{'_implicit_body_p_tag'} and $ptag eq 'body') {
                 print
                   " * Phrasal \U$tag\E right under BODY makes an implicit P\n"
@@ -613,10 +505,10 @@ sub start {
         }
         # End of implicit endings logic
         
-    # End of "elsif ($isBodyElement{$tag}"
+    # End of "elsif ($HTML::TreeBuilder::isBodyElement{$tag}"
     #----------------------------------------------------------------------
     
-    } elsif ($isHeadElement{$tag}) {
+    } elsif ($HTML::TreeBuilder::isHeadElement{$tag}) {
         if ($pos->is_inside('body')) {
             print $indent, " * head element \U$tag\E found inside BODY!\n"
              if $Debug;
@@ -629,8 +521,7 @@ sub start {
               " * head element \U$tag\E goes inside existing HEAD.\n"
              if $Debug > 1;
         }
-        die "Where'd my head go?" unless ref $self->{'_head'};
-        $self->{'_pos'} = $self->{'_head'};
+        $self->{'_pos'} = $self->{'_head'} || die "Where'd my head go?";
 
     #----------------------------------------------------------------------
     } elsif ($tag eq 'html') {
@@ -648,12 +539,11 @@ sub start {
             $self->attr($_, $attr->{$_});
         }
         $self->{'_pos'} = undef;
-        return;
+        return $self;    # bypass tweaking.
 
     #----------------------------------------------------------------------
     } elsif ($tag eq 'head') {
-        my $head = $self->{'_head'};
-        die "Where'd my head go?" unless ref $head;
+        my $head = $self->{'_head'} || die "Where'd my head go?";
         if(delete $head->{'_implicit'}) { # first time here
             print $indent, " * good! found the real HEAD element!\n"
              if $Debug > 1;
@@ -667,13 +557,11 @@ sub start {
         for (keys %$attr) {
             $head->attr($_, $attr->{$_});
         }
-        $self->{'_pos'} = $head;
-        return;
+        return $self->{'_pos'} = $head;    # bypass tweaking.
 
     #----------------------------------------------------------------------
     } elsif ($tag eq 'body') {
-        my $body = $self->{'_body'};
-        die "Where'd my body go?" unless ref $body;
+        my $body = $self->{'_body'} || die "Where'd my body go?";
         if(delete $body->{'_implicit'}) { # first time here
             print $indent, " * good! found the real BODY element!\n"
              if $Debug > 1;
@@ -687,8 +575,53 @@ sub start {
         for (keys %$attr) {
             $body->attr($_, $attr->{$_});
         }
-        $self->{'_pos'} = $body;
-        return;
+        return $self->{'_pos'} = $body;    # bypass tweaking.
+
+    #----------------------------------------------------------------------
+    } elsif ($tag eq 'frameset') {
+      if(
+        !($self->{'_frameset_seen'}++)   # first frameset seen
+        and !$self->{'_noframes_seen'}
+          # otherwise it'll be under the noframes already
+        and !$self->is_inside('body')
+      ) {
+        my $c = $self->{'_content'} || die "Contentless root?";
+        my $body = $self->{'_body'} || die "Where'd my BODY go?";
+        for(my $i = 0; $i < @$c; ++$i) {
+          if($c->[$i] eq $body) {
+            splice(@$c, $i, 0, $self->{'_pos'} = $pos = $e);
+            $already_inserted = 1;
+            print $indent, " * inserting 'frameset' right before BODY.\n"
+             if $Debug > 1;
+            last;
+          }
+        }
+        die "BODY not found in children of root?" unless $already_inserted;
+      }
+ 
+    } elsif ($tag eq 'frame') {
+        # Okay, fine, pass thru.
+        # Should probably enforce that these should be under a frameset.
+        # But hey.  Ditto for enforcing that 'noframes' should be under
+        # a 'frameset', as the DTDs say.
+
+    } elsif ($tag eq 'noframes') {
+        # This basically assumes there'll be exactly one 'noframes' element
+        #  per document.  At least, only the first one gets to have the
+        #  body under it.  And if there are no noframes elements, then
+        #  the body pretty much stays where it is.  Is that ever a problem?
+        if($self->{'_noframes_seen'}++) {
+          print $indent, " * ANOTHER noframes element?\n" if $Debug;
+        } else {
+          if($pos->is_inside('body')) {
+            print $indent, " * 'noframes' inside 'body'.  Odd!\n" if $Debug;
+            # In that odd case, we /can't/ make body a child of 'noframes',
+            # because it's an ancestor of the 'noframes'!
+          } else {
+            $e->push_content( $self->{'_body'} || die "Where'd my body go?" );
+            print $indent, " * Moving body to be under noframes.\n" if $Debug;
+          }
+        }
 
     #----------------------------------------------------------------------
     } else {
@@ -705,9 +638,8 @@ sub start {
 
     print
       $indent, "(Attaching ", $e->{'_tag'}, " under ",
-      $self->{'_pos'} ? $self->{'_pos'}{'_tag'} : $self->{'_tag'},
+      ($self->{'_pos'} || $self)->{'_tag'}, ")\n"
         # because if _pos isn't defined, it goes under self
-      ")\n"
      if $Debug;
     
     # The following if-clause is to delete /some/ ignorable whitespace
@@ -718,23 +650,23 @@ sub start {
     #  the tightener later to catch the rest.
 
     if($self->{'_tighten'} and !$self->{'_ignore_text'}) {  # if tightenable
-      my $par = $self->{'_pos'} || $self;
-      my $sibs = $par->{'_content'};
+      my($sibs, $par);
       if(
-         $sibs and @$sibs  # parent already has content
+         ($sibs = ( $par = $self->{'_pos'} || $self )->{'_content'})
+         and @$sibs  # parent already has content
          and !ref($sibs->[-1])  # and the last one there is a text node
          and $sibs->[-1] !~ m<\S>s  # and it's all whitespace
 
          and (  # one of these has to be eligible...
-               $canTighten{$tag}
+               $HTML::TreeBuilder::canTighten{$tag}
                or
                (
                  (@$sibs == 1)
                    ? # WS is leftmost -- so parent matters
-                     $canTighten{$par->{'_tag'}}
+                     $HTML::TreeBuilder::canTighten{$par->{'_tag'}}
                    : # WS is after another node -- it matters
                      (ref $sibs->[-2]
-                      and $canTighten{$sibs->[-2]{'_tag'}}
+                      and $HTML::TreeBuilder::canTighten{$sibs->[-2]{'_tag'}}
                      )
                )
              )
@@ -747,8 +679,8 @@ sub start {
       }
     }
     
-    $self->insert_element($e);
-    
+    $self->insert_element($e) unless $already_inserted;
+
     if($Debug) {
       if($self->{'_pos'}) {
         print
@@ -765,13 +697,31 @@ sub start {
       }
     }
 
-    return;
+    unless(($self->{'_pos'} || '') eq $e) {
+      # if it's an empty element -- i.e., if it didn't change the _pos
+      &{  $self->{"_tweak_$tag"}
+          ||  $self->{'_tweak_*'}
+          || return $e
+      }(map $_,   $e, $tag, $self); # make a list so the user can't clobber
+    }
+
+    return $e;
 }
 
 #==========================================================================
-
+
 sub end {
+    return if $_[0]{'_stunted'};
+    
+  # Either: Acccept an end-tag signal from HTML::Parser
+  # Or: Method for closing currently open elements in some fairly complex
+  #  way, as used by other methods in this class.
     my($self, $tag, @stop) = @_;
+    if($tag eq 'x-html') {
+      print "Ignoring close-x-html tag.\n" if $Debug;
+      # inserted by some lame code-generators.
+      return;
+    }
 
     # This method accepts two calling formats:
     #  1) from Parser:  $self->end('tag_name', 'origtext')
@@ -783,8 +733,8 @@ sub end {
     # The tag can also be a reference to an array.  Terminate the first
     # tag found.
     
-    my $p = $self->{'_pos'};
-    $p = $self unless defined($p);
+    my $ptag = ( my $p = $self->{'_pos'} || $self )->{'_tag'};
+     # $p and $ptag are sort-of stratch
     
     if(ref($tag)) {
       # First param is a ref of one sort or another --
@@ -804,16 +754,9 @@ sub end {
       
       # now announce ourselves
       print $indent, "Ending ",
-        ref($tag)
-          ? ('[', join(' ', @$tag ), ']')
-          : "\U$tag\E",
-        scalar(@stop)
-          ? (" no higher than [",
-             join(' ', @stop) ,
-             "]"
-            )
-          : (),
-        ".\n"
+        ref($tag) ? ('[', join(' ', @$tag ), ']') : "\U$tag\E",
+        scalar(@stop) ? (" no higher than [", join(' ', @stop), "]" )
+          : (), ".\n"
       ;
       
       print $indent, " (Current lineage: ", join('/', @lineage_tags), ".)\n"
@@ -834,102 +777,110 @@ sub end {
     # End of if $Debug
     
     # Now actually do it
-    
+    my @to_close;
     if($tag eq '*') {
-      # Special -- close everything up to the first limiting tag, or return
-      #  if none found.  Somewhat of a special case.
-      # (Yes, I know it shares so little code with the rest of the
-      #  code in this method that it's almost pointless having it here.
-      #  But at least it's semantically related.)
+      # Special -- close everything up to (but not including) the first
+      #  limiting tag, or return if none found.  Somewhat of a special case.
 
-      my $ptag; # no point in reallocating in every loop
      PARENT:
       while (defined $p) {
         $ptag = $p->{'_tag'};
         print $indent, " (Looking at $ptag.)\n" if $Debug > 2;
         for (@stop) {
           if($ptag eq $_) {
-            print
-              $indent,
-              " (Hit a $_; closing everything up to here.)\n"
+            print $indent, " (Hit a $_; closing everything up to here.)\n"
              if $Debug > 2;
-             
-             # And return now -- we have to opt out of the normal returner
-             #  code later on...
-             # Move position, since the specified tag was found
-             $self->{'_pos'} = $p;
-             print $indent, "(Pos now points at ",
-               $p ? $p->{'_tag'} : '???', ".)\n"
-              if $Debug > 1;
-             return $p;
+            last PARENT;
           }
         }
+        push @to_close, $p;
         $p = $p->{'_parent'}; # no match so far? keep moving up
         print
           $indent, 
-          " (Movin on up to ", $p ? $p->{'_tag'} : 'nil', ")\n"
+          " (Moving on up to ", $p ? $p->{'_tag'} : 'nil', ")\n"
          if $Debug > 1
         ;
       }
-      return undef; # went off the top of the tree -- fail
-    }
-    
-    # Otherwise...
-    if (ref $tag) { # list of potential tags to close
-        my $ptag; # no point in reallocating in every loop
-      PARENT:
-        while (defined $p) {
-            $ptag = $p->{'_tag'};
-            print $indent, " (Looking at $ptag.)\n" if $Debug > 2;
-            for (@$tag) {
-                if($ptag eq $_) {
-                    print $indent, " (Closing $_.)\n" if $Debug > 2;
-                    last PARENT;
-                }
-            }
-            for (@stop) {
-                if($ptag eq $_) {
-                    print $indent, " (Hit a limiting $_ -- bailing out.)\n"
-                     if $Debug > 1;
-                    return;
-                }
-            }
-            $p = $p->{'_parent'};
+      return unless defined $p; # We never found what we were looking for.
+      # Otherwise update pos and fall thru.
+      $self->{'_pos'} = $p;
+    } elsif (ref $tag) {
+      # Close the first of any of the matching tags, giving up if you hit
+      #  any of the stop-tags.
+     PARENT:
+      while (defined $p) {
+        $ptag = $p->{'_tag'};
+        print $indent, " (Looking at $ptag.)\n" if $Debug > 2;
+        for (@$tag) {
+          if($ptag eq $_) {
+            print $indent, " (Closing $_.)\n" if $Debug > 2;
+            last PARENT;
+          }
         }
-    } else { # a single tag to close
-        my $ptag; # no point in reallocating in every loop
-        while (defined $p) {
-            $ptag = $p->{'_tag'};
-            print $indent, " (Looking at $ptag.)\n" if $Debug > 2;
-            if($ptag eq $tag) {
-                print $indent, " (Closing $tag.)\n" if $Debug > 2;
-                last;
-            }
-            for (@stop) {
-                if($ptag eq $_) {
-                    print $indent, " (Hit a limiting $_ -- bailing out.)\n"
-                     if $Debug > 1;
-                    return;
-                }
-            }
-            $p = $p->{'_parent'};
+        for (@stop) {
+          if($ptag eq $_) {
+            print $indent, " (Hit a limiting $_ -- bailing out.)\n"
+             if $Debug > 1;
+            return; # so it was all for naught
+          }
         }
-    }
-    
-    # Move position if the specified tag was found
-    if(defined $p) {
+        push @to_close, $p;
+        $p = $p->{'_parent'};
+      }
+      return unless defined $p; # We went off the top of the tree.
+      # Otherwise specified element was found; set pos to its parent.
+      push @to_close, $p;
       $self->{'_pos'} = $p->{'_parent'};
-      print $indent, "(Pos now points to ",
-        $p->{'_parent'} ? $p->{'_parent'}{'_tag'} : '???', ".)\n"
-       if $Debug > 1;
+    } else {
+      # Close the first of the specified tag, giving up if you hit
+      #  any of the stop-tags.
+      while (defined $p) {
+        $ptag = $p->{'_tag'};
+        print $indent, " (Looking at $ptag.)\n" if $Debug > 2;
+        if($ptag eq $tag) {
+          print $indent, " (Closing $tag.)\n" if $Debug > 2;
+          last;
+        }
+        for (@stop) {
+          if($ptag eq $_) {
+            print $indent, " (Hit a limiting $_ -- bailing out.)\n"
+             if $Debug > 1;
+            return; # so it was all for naught
+          }
+        }
+        push @to_close, $p;
+        $p = $p->{'_parent'};
+      }
+      return unless defined $p; # We went off the top of the tree.
+      # Otherwise specified element was found; set pos to its parent.
+      push @to_close, $p;
+      $self->{'_pos'} = $p->{'_parent'};
     }
     
-    return $p;
+    $self->{'_pos'} = undef if $self eq ($self->{'_pos'} || '');
+    print $indent, "(Pos now points to ",
+      $self->{'_pos'} ? $self->{'_pos'}{'_tag'} : '???', ".)\n"
+     if $Debug > 1;
+
+    foreach my $e (@to_close) {
+      # Call the applicable callback, if any
+      $ptag = $e->{'_tag'};
+      &{  $self->{"_tweak_$ptag"}
+          ||  $self->{'_tweak_*'}
+          || next
+      }(map $_,   $e, $ptag, $self);
+      print $indent, "Back from tweaking.\n" if $Debug;
+      last if $self->{'_stunted'}; # in case one of the handlers called stunt
+    }
+    return @to_close;
 }
 
 #==========================================================================
-
+
 sub text {
+    return if $_[0]{'_stunted'};
+    
+  # Accept a "here's a text token" signal from HTML::Parser.
     my($self, $text, $is_cdata) = @_;
       # the >3.0 versions of Parser may pass a cdata node.
       # Thanks to Gisle Aas for pointing this out.
@@ -938,10 +889,11 @@ sub text {
     
     my $ignore_text = $self->{'_ignore_text'};
     
-    my $pos = $self->{'_pos'};
-    $pos = $self unless defined($pos);
+    my $pos = $self->{'_pos'} || $self;
     
-    HTML::Entities::decode($text) unless $ignore_text || $is_cdata;
+    HTML::Entities::decode($text)
+     unless $ignore_text || $is_cdata
+      || $HTML::Tagset::isCDATA_Parent{$pos->{'_tag'}};
     
     my($indent, $nugget);
     if($Debug) {
@@ -961,21 +913,24 @@ sub text {
     #  $indent = ' ';
     }
     
-    if ($pos->is_inside('pre', 'xmp', 'listing', 'plaintext')) {
+    
+    my $ptag;
+    if ($HTML::Tagset::isCDATA_Parent{$ptag = $pos->{'_tag'}}
+        or $pos->is_inside('pre')
+    ) {
         return if $ignore_text;
         $pos->push_content($text);
     } else {
         # return unless $text =~ /\S/;  # This is sometimes wrong
         
-        my $ptag = $pos->{'_tag'};
         if (!$self->{'_implicit_tags'} || $text !~ /\S/) {
             # don't change anything
-        } elsif ($ptag eq 'head') {
+        } elsif ($ptag eq 'head' or $ptag eq 'noframes') {
             if($self->{'_implicit_body_p_tag'}) {
               print $indent,
-                " * Text node under HEAD closes HEAD, implicates BODY and P.\n"
+                " * Text node under \U$ptag\E closes \U$ptag\E, implicates BODY and P.\n"
                if $Debug > 1;
-              $self->end(\'head'); #'
+              $self->end(\$ptag);
               $pos =
                 $self->{'_body'}
                 ? ($self->{'_pos'} = $self->{'_body'}) # expected case
@@ -983,9 +938,9 @@ sub text {
               $pos = $self->insert_element('p', 1);
             } else {
               print $indent,
-                " * Text node under HEAD closes, implicates BODY.\n"
+                " * Text node under \U$ptag\E closes, implicates BODY.\n"
                if $Debug > 1;
-              $self->end(\'head'); #'
+              $self->end(\$ptag);
               $pos =
                 $self->{'_body'}
                 ? ($self->{'_pos'} = $self->{'_body'}) # expected case
@@ -1057,6 +1012,11 @@ sub text {
         
         $pos->push_content($text);
     }
+    
+    &{ $self->{'_tweak_~text'} || return }($text, $pos, $pos->{'_tag'} . '');
+     # Note that this is very exceptional -- it doesn't fall back to
+     #  _tweak_*, and it gives its tweak different arguments.
+    return;
 }
 
 #==========================================================================
@@ -1069,11 +1029,14 @@ sub text {
 #  whatnot is wrong.
 
 sub comment {
+  return if $_[0]{'_stunted'};
+  # Accept a "here's a comment" signal from HTML::Parser.
   #TODO: document this
 
-  return unless $_[0]->{'_store_comments'};
   my($self, $text) = @_;
   my $pos = $self->{'_pos'} || $self;
+  return unless $self->{'_store_comments'}
+     || $HTML::Tagset::isCDATA_Parent{ $pos->{'_tag'} };
   
   if($Debug) {
     my @lineage_tags = $pos->lineage_tag_names;
@@ -1089,12 +1052,24 @@ sub comment {
   }
   (my $e = HTML::Element->new('~comment'))->{'text'} = $text;
   $pos->push_content($e);
+
+  &{  $self->{'_tweak_~comment'}
+      || $self->{'_tweak_*'}
+      || return $e
+   }(map $_,   $e, '~comment', $self);
   
-  return;
+  return $e;
 }
 
 #==========================================================================
+# TODO: currently this puts declarations in just the wrong place.
+#  How to correct? look at pos->_content, and go to insert at end, 
+#  but back up before any head elements?  Do that just if implicit
+#  mode is on?
+
 sub declaration {
+  return if $_[0]{'_stunted'};
+  # Accept a "here's a markup declaration" signal from HTML::Parser.
   #TODO: document this
 
   return unless $_[0]->{'_store_declarations'};
@@ -1115,13 +1090,20 @@ sub declaration {
   }
   (my $e = HTML::Element->new('~declaration'))->{'text'} = $text;
   $pos->push_content($e);
+
+  &{  $self->{'_tweak_~declaration'}
+      || $self->{'_tweak_*'}
+      || return $e
+   }(map $_, $e,   '~declaration', $self);
   
-  return;
+  return $e;
 }
 
 #==========================================================================
 
 sub process {
+  return if $_[0]{'_stunted'};
+  # Accept a "here's a PI" signal from HTML::Parser.
   #TODO: document this
 
   return unless $_[0]->{'_store_pis'};
@@ -1142,10 +1124,16 @@ sub process {
   }
   (my $e = HTML::Element->new('~pi'))->{'text'} = $text;
   $pos->push_content($e);
+
+  &{  $self->{'_tweak_~pi'}
+      || $self->{'_tweak_*'}
+      || return $e
+   }(map $_,   $e, '~pi', $self);
   
-  return;
+  return $e;
 }
 
+
 #==========================================================================
 
 #When you call $tree->parse_file($filename), and the
@@ -1163,13 +1151,21 @@ sub process {
 #the tree), call $tree->eof() to signal that you're at the end of the
 #text you're inputting to the tree.  Besides properly cleaning any bits
 #of ignorable whitespace from the tree, this will also ensure that
-#HTML::Parser's internal buffers is flushed.
+#HTML::Parser's internal buffer is flushed.
 
 sub eof {
+  # Accept an "end-of-file" signal from HTML::Parser, or thrown by the user.
+  return $_[0]->SUPER::eof() if $_[0]->{'_stunted'};
+  
   my $x = $_[0];
   print "EOF received.\n" if $Debug;
   my $rv = $x->SUPER::eof(); # assumes a scalar return value
   
+  $x->end('html') unless $x eq ($x->{'_pos'} || $x);
+   # That SHOULD close everything, and will run the appropriate tweaks.
+   # We /could/ be running under some insane mode such that there's more
+   #  than one HTML element, but really, that's just insane to do anyhow.
+
   unless($x->{'_implicit_tags'}) {
     # delete those silly implicit head and body in case we put
     # them there in implicit tags mode
@@ -1185,10 +1181,48 @@ sub eof {
     # nothing we can do about that, is there?
   }
   
-  $x->tighten_up()  # this's why we trap this -- an after-method
+  $x->delete_ignorable_whitespace()
+   # this's why we trap this -- an after-method
    if $x->{'_tighten'} and ! $x->{'_ignore_text'};
   return $rv;
 }
+
+#==========================================================================
+
+# TODO: document
+
+sub stunt {
+  my $self = $_[0];
+  print "Stunting the tree.\n" if $Debug;
+  
+  if($HTML::Parser::VERSION < 3) {
+    #This is a MEAN MEAN HACK.  And it works most of the time!
+    $self->{'_buf'} = '';
+    my $fh = *HTML::Parser::F{IO};
+    # the local'd FH used by parse_file loop
+    if(defined $fh) {
+      print "Closing Parser's filehandle $fh\n" if $Debug;
+      close($fh);
+    }
+    
+    # But if they called $tree->parse_file($filehandle)
+    #  or $tree->parse_file(*IO), then there will be no *HTML::Parser::F{IO}
+    #  to close.  Ahwell.  Not a problem for most users these days.
+    
+  } else {
+    $self->SUPER::eof();
+     # Under 3+ versions, calling eof from inside a parse will abort the
+     #  parse / parse_file
+  }
+  
+  # In the off chance that the above didn't work, we'll throw
+  #  this flag to make any future events be no-ops.
+  $self->stunted(1);
+  return;
+}
+
+# TODO: document
+sub stunted  { shift->_elem('_stunted',  @_); }
 
 #==========================================================================
 
@@ -1227,129 +1261,46 @@ sub delete {
   return undef;
 }
 
-#==========================================================================
-
-sub tighten_up { # delete text nodes that are "ignorable whitespace"
-  
-  # This doesn't delete all sorts of whitespace that won't actually
-  #  be used in rendering, tho -- that's up to the rendering application.
-  # For example:
-  #   <input type='text' name='foo'>
-  #     [some whitespace]
-  #   <input type='text' name='bar'>
-  # The WS between the two elements /will/ get used by the renderer.
-  # But here:
-  #   <input type='hidden' name='foo' value='1'>
-  #     [some whitespace]
-  #   <input type='text' name='bar' value='2'>
-  # the WS between them won't be rendered in any way, presumably.
-
-  my $tree = $_[0];
-  my @delenda;
-  print "About to tighten up...\n" if $Debug > 2;
-  
-  {
-  my($i, $sibs); # scratch for the lambda...
-  $tree->traverse( # define a big lambda...
-    [
-    sub { # pre-order callback only
-      # For starters, we can apply only to text nodes in pre-order...
-      if(ref $_[0]) {
-        if(
-              # A few special nodes to NEVER clean up under...
-              $_[0]{'_tag'} eq 'pre'
-           or $_[0]{'_tag'} eq 'xmp'
-           or $_[0]{'_tag'} eq 'textarea'
-           or $_[0]{'_tag'} eq 'plaintext'
-        ) {
-          # block the traversal under those
-          print "Aborting tightener's traversal under $_[0]{'_tag'}\n"
-           if $Debug;
-          return 0;
-        } else {
-          return 1; # keep traversing
-        }
-      }
-      
-      return unless $_[0] =~ m<^\s+$>s; # it's /all/ whitespace
-      
-      print "At $_[0] at depth $_[2] under $_[3]{'_tag'} whose canTighten ",
-          "value is ", 0 + $canTighten{$_[3]{'_tag'}}, ".\n" if $Debug > 3;
-      $sibs = $_[3]{'_content'}; # my sibling list
-      $i = $_[4]; # my index in my sibling list
-      
-      # It's all whitespace...
-      
-      if($i == 0) {
-        if(@$sibs == 1) { # I'm an only child
-          return unless $canTighten{$_[3]{'_tag'}}; # parent
-        } else { # I'm leftmost of many
-          # if either my parent or sister are eligible, I'm good.
-          return unless
-             $canTighten{$_[3]{'_tag'}} # parent
-             or
-              (ref $sibs->[1]
-               and $canTighten{$sibs->[1]{'_tag'}} # right sister
-              )
-          ;
-        }
-      } elsif ($i == $#$sibs) { # I'm rightmost of many
-        # if either my parent or sister are eligible, I'm good.
-        return unless
-           $canTighten{$_[3]{'_tag'}} # parent
-           or
-            (ref $sibs->[$i - 1]
-             and $canTighten{$sibs->[$i - 1]{'_tag'}} # left sister
-            )
-      } else { # I'm the piggy in the middle
-        # My parent doesn't matter -- it all depends on my sisters
-        return
-          unless
-            ref $sibs->[$i - 1] or ref $sibs->[$i + 1];
-        # if NEITHER sister is a node, quit
-        
-        return if
-          # bailout condition: if BOTH are INeligible nodes
-          #  (as opposed to being text, or being eligible nodes)
-            ref $sibs->[$i - 1]
-            and ref $sibs->[$i + 1]
-            and !$canTighten{$sibs->[$i - 1]{'_tag'}} # left sister
-            and !$canTighten{$sibs->[$i + 1]{'_tag'}} # right sister
-        ;
-      }
-      # Unknown tags aren't in canTighten and so AREN'T subject to tightening
-      
-      # DELENDUM!
-      print "  delendum: child $i of ", $_[3]{'_tag'}, " at depth $_[1]\n"
-       if $Debug > 3;
-      push @delenda, [$sibs, $i];
-      
-      return;
-    }, # End of the big pre-order callback sub
-    undef # no post-order
-    ],
-    
-    0, # Don't ignore text nodes.
-  );
-  }
-  
-  # Now do things with delenda, in REVERSE of PRE-order!
-  foreach my $d (reverse @delenda) {
-    ## Sanity checking:
-    # die "WHAAAT!?  it's a ref now?!"
-    #  if ref $d->[0][ $d->[1] ]; # sanity
-    # die "WHAAAT!?  it's not whitespace anymore?!"
-    #  if $d->[0][ $d->[1] ] =~ m<\S>; # sanity
-    splice @{$d->[0]},
-           $d->[1],
-           1; # slice it out now
-  }
-  print scalar(@delenda), " ignorable whitespace nodes deleted.\n"
-    if $Debug > 2;
-
-  return;
+sub tighten_up { # legacy
+  shift->delete_ignorable_whitespace(@_);
 }
 
 #--------------------------------------------------------------------------
 1;
 
+__END__
+
+CUCUMBER AND ORANGE SALAD
+
+Adapted from:
+
+Holzner, Yupa.  /Great Thai Cooking for My American Friends: Creative
+Thai Dishes Made Easy/.  Royal House 1989.  ISBN:0930440277
+
+Makes about four servings.
+
+ 1 small greenhouse cucumber, sliced thin.
+ 2 navel oranges, peeled, separated into segments (seeded if
+   necessary), and probably chopped into chunks.
+
+Dressing:
+ 3 tablespoons rice vinegar
+ .5 teaspoon salt
+ 1 tablespoon sugar
+ 1 teaspoon roasted sesame seeds
+ .5 tablespoons mirin
+
+Mix all ingredients in the dressing.  Pour the dressing over the
+oranges and cucumbers, and toss.  Serve.
+
+
+All ingredient quantities are approximate.  Adjust to taste.  Multipy
+quantities for more servings.
+
+Note: the sesame seeds you get in an American supermarket are almost
+certain to be unroasted, suspiciously waxy-looking, and astronomically
+overpriced.  Good cheap sesame seeds are available at most Asian
+markets -- they usually come roasted; if they're unroasted, roast them
+in a skillet for a few short minutes as needed.
+
+[End Recipe]

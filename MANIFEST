@@ -5,6 +5,7 @@ README
 dtd2pm
 ent
 lib/HTML/AsSubs.pm
+lib/HTML/Element/traverse.pod
 lib/HTML/Element.pm
 lib/HTML/Parse.pm
 lib/HTML/TreeBuilder.pm
