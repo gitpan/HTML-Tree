@@ -1,4 +1,45 @@
-# Time-stamp: "2000-03-08 18:52:00 MST"
+# Time-stamp: "2000-03-26 20:31:59 MST"
+
+
+2000-03-26   Sean M. Burke  <sburke@netadventure.net>
+
+   Release 0.65
+
+   Important additions to HTML::Element :
+
+     Totally reimplemented the traverse() method, and added features,
+     now providing a somewhat-new interface.  It's still
+     backwards-compatible both syntactically and semantically.
+     
+     Added methods: content_list, detach_content, replace_linkage,
+     normalize_content, preinsert, postinsert, and has_insane_linkage.
+
+     $h->attr('foo', undef) now actually deletes the attribute
+     'foo' from $h, instead of setting it to undef.  Hopefully
+     this won't break any existing code!
+
+   Rearranged the order of some sections in the Element docs
+   for purely pedagogical reasons.
+
+   Bugfix:  $tree->clone failed to delete the internal
+   _head and _body attributes of the clone (used by TreeBuilder),
+   $tree->clone->delete ended up deleting most/all of the original!
+   Fixed.  Added cavets to the docs warning against cloning
+   TreeBuilder objects that are in mid-parse (not that I think most
+   users are exactly rushing to do this).
+   Thanks to Bob Glickstein for finding and reporting this bug.
+
+   Added some regression/sanity tests in t/
+
+   A bit more sanity checking in TreeBuilder: checks for _head and
+   _body before including it.
+
+   Modded TreeBuilder's calls to traverse() to be use new [sub{...},0]
+   calling syntax, for sake of efficiency.
+
+   Added some undocumented and experimental code in Element and
+   TreeBuilder for using HTML::Element objects to represent
+   comments, PIs, declarations, and "literals".
 
 2000-03-08   Sean M. Burke <sburke@netadventure.net>
 

@@ -1,6 +1,9 @@
 
-# Time-stamp: "2000-03-07 20:23:16 MST"
+# Time-stamp: "2000-03-26 19:02:01 MST"
 package HTML::TreeBuilder;
+#TODO: maybe have it recognize higher versions of
+# Parser, and register the methods as subs?
+# Hm, but TreeBuilder wouldn't be subclassable, then.
 
 =head1 NAME
 
@@ -193,7 +196,11 @@ $Debug = 0 unless defined $Debug;
 require HTML::Element;
 require HTML::Parser;
 @ISA = qw(HTML::Element HTML::Parser);
-$VERSION = '2.94';
+ # This looks schizoid, I know.
+ # It's not that we ARE an element AND a parser.
+ # We ARE an element, but one that knows how to handle signals
+ #  (method calls) from Parser in order to elaborate its subtree.
+$VERSION = '2.96';
 
 #==========================================================================
 # List of all elements from Extensible HTML version 1.0 Transitional DTD:
@@ -480,6 +487,10 @@ sub start {
           # In neither head nor body!  mmmmm... put under head?
 
           if ($ptag eq 'html') { # expected case
+            # TODO?? : would there ever be a case where _head would be
+            #  absent from a tree that would ever be accessed at this
+            #  point?
+            die "Where'd my head go?" unless ref $self->{'_head'};
             if ($self->{'_head'}{'_implicit'}) {
               print $indent,
                 " * ambilocal element \U$tag\E makes an implicit HEAD.\n"
@@ -509,12 +520,14 @@ sub start {
               " * body-element \U$tag\E minimizes HEAD, makes implicit BODY.\n"
              if $Debug > 1;
             $pos = $self->{'_pos'} = $self->{'_body'}; # yes, needs updating
+            die "Where'd my body go?" unless ref $pos;
             $ptag = $pos->tag; # yes, needs updating
         } elsif (!$pos->is_inside('body')) {
             print $indent,
               " * body-element \U$tag\E makes implicit BODY.\n"
              if $Debug > 1;
             $pos = $self->{'_pos'} = $self->{'_body'}; # yes, needs updating
+            die "Where'd my body go?" unless ref $pos;
             $ptag = $pos->tag; # yes, needs updating
         }
          # else OK.
@@ -615,6 +628,7 @@ sub start {
               " * head element \U$tag\E goes inside existing HEAD.\n"
              if $Debug > 1;
         }
+        die "Where'd my head go?" unless ref $self->{'_head'};
         $self->{'_pos'} = $self->{'_head'};
 
     #----------------------------------------------------------------------
@@ -638,6 +652,7 @@ sub start {
     #----------------------------------------------------------------------
     } elsif ($tag eq 'head') {
         my $head = $self->{'_head'};
+        die "Where'd my head go?" unless ref $head;
         if(delete $head->{'_implicit'}) { # first time here
             print $indent, " * good! found the real HEAD element!\n"
              if $Debug > 1;
@@ -657,6 +672,7 @@ sub start {
     #----------------------------------------------------------------------
     } elsif ($tag eq 'body') {
         my $body = $self->{'_body'};
+        die "Where'd my body go?" unless ref $body;
         if(delete $body->{'_implicit'}) { # first time here
             print $indent, " * good! found the real BODY element!\n"
              if $Debug > 1;
@@ -1158,7 +1174,8 @@ sub eof {
     # them there in implicit tags mode
     foreach my $node ($x->{'_head'}, $x->{'_body'}) {
       $node->replace_with_content
-       if $node and $node->{'_implicit'} and $node->{'_parent'};
+       if defined $node and ref $node
+          and $node->{'_implicit'} and $node->{'_parent'};
        # I think they should be empty anyhow, since the only
        # logic that'd insert under them can apply only, I think,
        # in the case where _implicit_tags is on
@@ -1180,13 +1197,25 @@ sub delete {
   # Deletes content, including content in some special attributes.
   # But doesn't empty out the hash.
 
+  delete @{$_[0]}{'_body', '_head', '_pos'};
   for (@{ delete($_[0]->{'_content'})
           || []
         }, # all/any content
-       delete @{$_[0]}{'_body', '_head', '_pos'}
+#       delete @{$_[0]}{'_body', '_head', '_pos'}
          # ...and these, in case these elements don't appear in the
          #   content, which is possible.  If they did appear (as they
          #   usually do), then calling $_->delete on them again is harmless.
+#  I don't think that's such a hot idea now.  Thru creative reattachment,
+#  those could actually now point to elements in OTHER trees (which we do
+#  NOT want to delete!).
+## Reasoned out:
+#  If these point to elements not in the content list of any element in this
+#   tree, but not in the content list of any element in any OTHER tree, then
+#   just deleting these will make their refcounts hit zero.
+#  If these point to elements in the content lists of elements in THIS tree,
+#   then we'll get to deleting them when we delete from the top.
+#  If these point to elements in the content lists of elements in SOME OTHER
+#   tree, then they're not to be deleted.
       )
   {
     $_->delete
@@ -1221,10 +1250,9 @@ sub tighten_up { # delete text nodes that are "ignorable whitespace"
   {
   my($i, $sibs); # scratch for the lambda...
   $tree->traverse( # define a big lambda...
-    sub {
-      
+    [
+    sub { # pre-order callback only
       # For starters, we can apply only to text nodes in pre-order...
-      return 0 unless $_[1]; # work in pre-order...
       if(ref $_[0]) {
         if(
               # A few special nodes to NEVER clean up under...
@@ -1296,7 +1324,10 @@ sub tighten_up { # delete text nodes that are "ignorable whitespace"
       push @delenda, [$sibs, $i];
       
       return;
-    }, # End of the big traverser callback sub
+    }, # End of the big pre-order callback sub
+    undef # no post-order
+    ],
+    
     0, # Don't ignore text nodes.
   );
   }
