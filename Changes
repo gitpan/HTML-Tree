@@ -1,4 +1,16 @@
-# Time-stamp: "2000-10-20 20:08:06 MDT"
+# Time-stamp: "2000-11-03 16:37:59 MST"
+
+
+2000-11-03   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.08
+
+   In Element and TreeBuilder: fixed handling of textarea content --
+   Thanks to Ronald J Kimball <rjk@linguist.dartmouth.edu> for
+   catching this.
+
+   In Element: a few internal changes to make it subclassable by the
+   forthcoming XML::Element et al.
 
 2000-10-20   Sean M. Burke <sburke@cpan.org>
 

@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-10-20 20:40:09 MDT"
+# Time-stamp: "2000-11-03 16:18:26 MST"
 package HTML::Element;
 # TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
@@ -149,7 +149,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER);
 
-$VERSION = '3.07';
+$VERSION = '3.08';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -230,11 +230,11 @@ sub new
 
     my $tag   = shift;
     Carp::croak("No tagname") unless defined $tag and length $tag;
-    my $self  = bless { _tag => lc $tag }, $class;
+    my $self  = bless { _tag => scalar($class->_fold_case($tag)) }, $class;
     my($attr, $val);
     while (($attr, $val) = splice(@_, 0, 2)) {
         $val = $attr unless defined $val;
-        $self->{lc $attr} = $val;
+        $self->{$class->_fold_case($attr)} = $val;
     }
     if ($tag eq 'html') {
         $self->{'_pos'} = undef;
@@ -264,7 +264,7 @@ string) actually deletes the attribute.
 sub attr
 {
     my $self = shift;
-    my $attr = lc shift;
+    my $attr = scalar($self->_fold_case(shift));
     if (@_) {  # set
         if(defined $_[0]) {
             my $old = $self->{$attr};
@@ -381,7 +381,7 @@ sub tag
     my $self = shift;
     if (@_) { # set
     #print "SET\n";
-        $self->{'_tag'} = lc $_[0];
+        $self->{'_tag'} = $self->_fold_case($_[0]);
     } else { # get
     #print "GET\n";
         $self->{'_tag'};
@@ -802,7 +802,7 @@ sub push_content
 
 =item $h->unshift_content($element_or_text, ...)
 
-Just like C<push_content>, but adds to the C<beginning> of the $h
+Just like C<push_content>, but adds to the I<beginning> of the $h
 element's content list.
 
 The items of content to be added should each be
@@ -1258,6 +1258,7 @@ sub delete_ignorable_whitespace {
   while(@to_do) {
     if(
        ( $ptag = ($this = shift @to_do)->{'_tag'} ) eq 'pre'
+       or $ptag eq 'textarea'
        or $HTML::Tagset::isCDATA_Parent{$ptag}
     ) {
       # block the traversal under those
@@ -1361,10 +1362,37 @@ sub insert_element
     $pos->push_content($e);
 
     $self->{'_pos'} = $pos = $e
-      unless $HTML::Element::emptyElement{$tag} || $e->{'_empty_element'};
+      unless $self->_empty_element_map->{$tag} || $e->{'_empty_element'};
 
     $pos;
 }
+
+#==========================================================================
+# Some things to override in XML::Element
+
+sub _empty_element_map {
+  \%HTML::Element::emptyElement;
+}
+
+sub _fold_case_LC {
+  if(wantarray) {
+    shift;
+    map lc($_), @_;
+  } else {
+    return lc($_[1]);
+  }
+}
+
+sub _fold_case_NOT {
+  if(wantarray) {
+    shift;
+    @_;
+  } else {
+    return $_[1];
+  }
+}
+
+*_fold_case = \&_fold_case_LC;
 
 #==========================================================================
 
@@ -1452,6 +1480,8 @@ sub as_HTML
   my @html = ();
   
   $omissible_map ||= \%HTML::Element::optionalEndTag;
+  my $empty_element_map = $self->_empty_element_map;
+
   my $last_tag_tightenable = 0;
   my $this_tag_tightenable = 0;
   my $nonindentable_ancestors = 0;  # count of nonindentible tags over us.
@@ -1486,7 +1516,7 @@ sub as_HTML
              ++$nonindentable_ancestors
                if $tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag};             ;
              
-           } elsif (not($HTML::Element::emptyElement{$tag} or $omissible_map->{$tag})) {
+           } elsif (not($empty_element_map->{$tag} or $omissible_map->{$tag})) {
              # on the way out
              if($tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag}) {
                --$nonindentable_ancestors;
@@ -1557,7 +1587,7 @@ sub as_HTML
             $tag = $node->{'_tag'};
             if($start) { # on the way in
               push(@html, $node->starttag($entities));
-            } elsif (not($HTML::Element::emptyElement{$tag} or $omissible_map->{$tag})) {
+            } elsif (not($empty_element_map->{$tag} or $omissible_map->{$tag})) {
               # on the way out
               push(@html, $node->endtag);
             }
@@ -1641,6 +1671,7 @@ sub as_XML
   my($self, $entities) = @_;
   #my $indent_on = defined($indent) && length($indent);
   my @xml = ();
+  my $empty_element_map = $self->_empty_element_map;
   
   my($tag, $node, $start); # per-iteration scratch
   $self->traverse(
@@ -1649,7 +1680,7 @@ sub as_XML
         if(ref $node) { # it's an element
           $tag = $node->{'_tag'};
           if($start) { # on the way in
-            if($HTML::Element::emptyElement{$tag}
+            if($empty_element_map->{$tag}
                and !@{$node->{'_content'} || $nillio}
             ) {
               push(@xml, $node->starttag_XML($entities,1));
@@ -1657,7 +1688,7 @@ sub as_XML
               push(@xml, $node->starttag_XML($entities));
             }
           } else { # on the way out
-            unless($HTML::Element::emptyElement{$tag}
+            unless($empty_element_map->{$tag}
                    and !@{$node->{'_content'} || $nillio}
             ) {
               push(@xml, $node->endtag_XML());
@@ -1964,6 +1995,8 @@ sub traverse {
      unless ref($callback);
   }
   
+  my $empty_element_map = $start->_empty_element_map;
+  
   my(@C) = [$start]; # a stack containing lists of children
   my(@I) = (-1); # initial value must be -1 for each list
     # a stack of indexes to current position in corresponding lists in @C
@@ -1993,7 +2026,7 @@ sub traverse {
          and ref($this) # sanity
          and not(
                  $this->{'_empty_element'}
-                 || $HTML::Element::emptyElement{$this->{'_tag'} || ''}
+                 || $empty_element_map->{$this->{'_tag'} || ''}
                 ) # things that don't get post-order callbacks
       ) {
         shift @I;
@@ -2067,7 +2100,7 @@ sub traverse {
           if(ref($this)
              and
              not($this->{'_empty_element'}
-                 || $HTML::Element::emptyElement{$this->{'_tag'} || ''})
+                 || $empty_element_map->{$this->{'_tag'} || ''})
           ) {
             # push a dummy empty content list just to trigger a post callback
             unshift @I, -1;
@@ -2101,7 +2134,7 @@ sub traverse {
        not( # ...except for those which...
          not($content_r = $this->{'_content'} and @$content_r)
             # ...have empty content lists...
-         and $this->{'_empty_element'} || $HTML::Element::emptyElement{$this->{'_tag'} || ''}
+         and $this->{'_empty_element'} || $empty_element_map->{$this->{'_tag'} || ''}
             # ...and that don't get post-order callbacks
        )
     ) {
@@ -2503,7 +2536,7 @@ sub find_by_tag_name {
   Carp::croak "find_by_tag_name can be called only as an object method"
    unless ref $pile[0];
   return() unless @_;
-  my(@tags) = map lc($_), @_;
+  my(@tags) = $pile[0]->_fold_case(@_);
   my(@matching, $this, $this_tag);
   while(@pile) {
     $this_tag = ($this = shift @pile)->{'_tag'};
@@ -2540,7 +2573,7 @@ sub find_by_attribute {
   # We could limit this to non-internal attributes, but hey.
   my($self, $attribute, $value) = @_;
   Carp::croak "Attribute must be a defined value!" unless defined $attribute;
-  $attribute = lc $attribute;
+  $attribute =  $self->_fold_case($attribute);
   
   my @matching;
   my $wantarray = wantarray;
@@ -2674,9 +2707,10 @@ sub look_down {
       push @criteria, $_[ $i++ ];
     } else {
       Carp::croak "param list to look_down ends in a key!" if $i == $#_;
-      push @criteria, [ lc($_[$i]), 
+      push @criteria, [ scalar($_[0]->_fold_case($_[$i])), 
                         defined($_[$i+1])
                           ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
+                            # yes, leave that LC!
                           : undef
                       ];
       $i += 2;
@@ -2748,10 +2782,10 @@ sub look_up {
       push @criteria, $_[ $i++ ];
     } else {
       Carp::croak "param list to look_up ends in a key!" if $i == $#_;
-      push @criteria, [ lc($_[$i]), 
+      push @criteria, [ scalar($_[0]->_fold_case($_[$i])),
                         defined($_[$i+1])
                           ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
-                          : undef
+                          : undef  # Yes, leave that LC!
                       ];
       $i += 2;
     }
@@ -2859,7 +2893,7 @@ sub attr_get_i {
     my $self = shift;
     Carp::croak "No attribute names can be undef!"
      if grep !defined($_), @_;
-    my @attributes = map lc($_), @_;
+    my @attributes = $self->_fold_case(@_);
     if(wantarray) {
       my @out;
       foreach my $x ($self, $self->lineage) {
@@ -2879,7 +2913,7 @@ sub attr_get_i {
     #  for the most common case
     Carp::croak "Attribute name must be a defined value!" unless defined $_[1];
     my $self = $_[0];
-    my $attribute = lc $_[1];
+    my $attribute =  $self->_fold_case($_[1]);
     if(wantarray) { # list context
       return
         map {
@@ -2979,10 +3013,12 @@ sub extract_links
     my $start = shift;
 
     my %wantType;
-    @wantType{map { lc $_ } @_} = (1) x @_; # if there were any
+    @wantType{$start->_fold_case(@_)} = (1) x @_; # if there were any
     my $wantType = scalar(@_);
 
     my @links;
+
+    # TODO: add xml:link?
 
     my($link_attrs, $tag, $self, $val); # scratch for each iteration
     $start->traverse(
@@ -3240,7 +3276,7 @@ sub new_from_lol {
       } elsif(ref($lol->[$i]) eq 'HASH') { # attribute hashref
         keys %{$lol->[$i]}; # reset the each-counter, just in case
         while(($k,$v) = each %{$lol->[$i]}) {
-          push @attributes, lc($k), $v
+          push @attributes, $class->_fold_case($k), $v
             unless $k eq '_name' or $k eq '_content' or $k eq '_parent';
           # enforce /some/ sanity!
         }

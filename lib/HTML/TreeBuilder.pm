@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-10-02 14:32:14 MDT"
+# Time-stamp: "2000-11-03 15:52:10 MST"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -12,7 +12,11 @@ package HTML::TreeBuilder;
 use strict;
 use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.05';
+$VERSION = '3.08';
+
+# TODO: thank whoever pointed out the TEXTAREA bug
+# TODO: make require Parser of at least version... 2.27?
+#  The one with the stop-parse.  Then kill the whole stunting thing.
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -937,7 +941,8 @@ sub warning {
     
     my $ptag;
     if ($HTML::Tagset::isCDATA_Parent{$ptag = $pos->{'_tag'}}
-        or $pos->is_inside('pre')
+        #or $pos->is_inside('pre')
+        or $pos->is_inside('pre', 'textarea')
     ) {
         return if $ignore_text;
         $pos->push_content($text);
@@ -1517,6 +1522,8 @@ going astray, and how you would prefer that it work instead.
 =head1 SEE ALSO
 
 L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
+
+L<HTML::DOMbo>
 
 =head1 COPYRIGHT
 
