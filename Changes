@@ -1,3 +1,35 @@
+# Time-stamp: "1999-12-15 21:57:51 MST"
+
+1999-12-15   Sean M. Burke <sburke@netadventure.net>
+
+   Release 0.61
+
+   Versions in this dist:
+    HTML::Parse:  2.6
+    HTML::TreeBuilder: 2.91
+    HTML::Element:  1.44
+    HTML::AsSubs: 1.12
+
+   No longer including the Formatter modules.
+
+   Lots of new methods and changes in HTML::Element; reorganized docs.
+
+   Added new HTML tags to HTML::Element's and HTML::TreeBuilder's
+   internal tables.
+
+   Reworked the logic in HTML::TreeBuilder.  Previous versions dealt
+   badly with tables, and attempts to enforce content-model rules
+   occasionally went quite awry.  This new version is much less
+   agressive about content-model rules, and works on the principle
+   that if the HTML source is cock-eyed, there's limits to what can be
+   done to keep the syntax tree from being cock-eyed.
+
+   HTML::TreeBuilder now also tries to ignore ignorable whitespace.
+   The resulting parse trees often have half (or fewer) the number of
+   nodes, without all the ignorable "     " nodes like before.
+
+
+
 1999-12-15   Gisle Aas <gisle@aas.no>
 
    Release 0.53

@@ -1,4 +1,6 @@
+
 package HTML::AsSubs;
+#Time-stamp: "1999-12-15 19:19:32 MST"
 
 =head1 NAME
 
@@ -69,7 +71,7 @@ require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = sprintf("%d.%02d", q$Revision: 1.11 $ =~ /(\d+)\.(\d+)/);
+$VERSION = '1.12';
 
 use vars qw(@TAGS);
 @TAGS = qw(html
@@ -106,7 +108,7 @@ sub _elem
     if (@_ and defined $_[0] and ref($_[0]) eq "HASH") {
 	$attributes = shift;
     }
-    my $elem = new HTML::Element $tag, %$attributes;
+    my $elem = HTML::Element->new( $tag, %$attributes );
     $elem->push_content(@_);
     $elem;
 }
