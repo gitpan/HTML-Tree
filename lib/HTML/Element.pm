@@ -1,7 +1,8 @@
 
 require 5;
-# Time-stamp: "2002-11-06 23:43:09 MST"
+# Time-stamp: "2002-11-22 23:57:04 MST"
 package HTML::Element;
+# TODO: make as_* understand ~text items
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
