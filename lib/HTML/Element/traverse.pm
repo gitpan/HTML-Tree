@@ -1,4 +1,13 @@
-#Time-stamp: "2000-07-06 21:00:01 MDT"
+
+# This is a .pm just to (try to) make some CPAN document converters
+#  convert it happily as part of the dist's documentation tree.
+package HTML::Element::traverse;
+ # Time-stamp: "2001-01-20 12:28:57 MST"
+use HTML::Element ();
+$VERSION = $VERSION = $HTML::Element::VERSION;
+1;
+
+__END__
 
 =head1 NAME
 
@@ -9,7 +18,7 @@ HTML::Element traverse - discussion of HTML::Element's traverse method
   # $element->traverse is unnecessary and obscure.
   #   Don't use it in new code.
 
-=head1 DISCUSSION
+=head1 DESCRIPTION
 
 C<HTML::Element> provides a method C<traverse> that traverses the tree
 and calls user-specified callbacks for each node, in pre- or

@@ -1,4 +1,4 @@
-# Time-stamp: "2000-05-18 23:58:03 MDT"
+# Time-stamp: "2001-01-20 13:33:52 MST"
 
 HTML-Tree
 ---------
@@ -11,6 +11,8 @@ about these modules can still be sent to the <libwww@perl.org> mailing
 list, or to <sburke@cpan.org>.
 
 The modules present in this collection are:
+
+  HTML::Tree -- overview of the modules.
 
   HTML::Element - represents the nodes of the HTML syntax trees.  The
         elements have other elements and text segments as children.
@@ -31,8 +33,9 @@ The modules present in this collection are:
 PREREQUISITES
 
 In order to install and use this package you will need Perl version
-5.004 or better.  You will also need to have an HTML-Parser
-distribution installed.  All of these should be available from CPAN.
+5.004 or better.  You will also need to have an HTML-Parser and
+HTML-Tagset distributions installed.  All of these should be available
+from CPAN.
 
 
 
@@ -45,12 +48,13 @@ Just follow the usual procedure:
    make test
    make install
 
+Or see also "perldoc perlmodinstall"
 
 
 COPYRIGHT
 
   (c) 1995-1999  Gisle Aas.
-  (c) 1999, 2000  Sean M. Burke
+  (c) 1999-2001  Sean M. Burke
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

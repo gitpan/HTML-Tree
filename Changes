@@ -1,5 +1,12 @@
-# Time-stamp: "2000-11-03 16:37:59 MST"
+# Time-stamp: "2001-01-20 13:40:45 MST"
 
+2001-01-21   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.09
+
+   Changed HTML/Element/traverse.pod to HTML/Element/traverse.pm
+
+   Wrote overview file: HTML/Tree.pm
 
 2000-11-03   Sean M. Burke <sburke@cpan.org>
 
