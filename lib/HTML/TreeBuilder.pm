@@ -1,5 +1,5 @@
 
-# Time-stamp: "1999-12-21 12:56:35 MST"
+# Time-stamp: "2000-03-07 20:23:16 MST"
 package HTML::TreeBuilder;
 
 =head1 NAME
@@ -17,12 +17,13 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
       $tree->as_HTML, "\n";
     
     # Now that we're done with it, we must destroy it.
-    $tree = $tree->destroy;
+    $tree = $tree->delete;
   }
 
 =head1 DESCRIPTION
 
-This class is for HTML syntax trees.  The way to use it is to:
+This class is for HTML syntax trees that get built out of HTML
+source.  The way to use it is to:
 
 1. start a new (empty) HTML::TreeBuilder object,
 
@@ -164,7 +165,7 @@ L<HTML::Parser>, L<HTML::Element>
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas, copyright 1999 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas; copyright 1999, 2000 Sean M. Burke.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -192,7 +193,7 @@ $Debug = 0 unless defined $Debug;
 require HTML::Element;
 require HTML::Parser;
 @ISA = qw(HTML::Element HTML::Parser);
-$VERSION = '2.92';
+$VERSION = '2.94';
 
 #==========================================================================
 # List of all elements from Extensible HTML version 1.0 Transitional DTD:
@@ -274,7 +275,9 @@ $VERSION = '2.92';
   # i.e., if we find 'script' in the 'body' or the 'head', don't freak out.
 
 
-%isKnown = (%isHeadElement, %isBodyElement, map{$_=>1} qw(head body html));
+%isKnown = (%isHeadElement, %isBodyElement,
+  map{$_=>1} qw(head body html ~comment ~pi ~directive ~literal)
+);
  # that should be all known tags ever ever
 #print join(' ',%isKnown), "\n";
 
@@ -413,6 +416,9 @@ sub warning {
 
 sub start {
     my($self, $tag, $attr) = @_;
+    # Parser passes more, actually:
+    #   $self->start($tag, $attr, $attrseq, $origtext)
+    # But we can merrily ignore $attrseq and $origtext.
 
     my $pos  = $self->{'_pos'};
     $pos = $self unless defined $pos;
@@ -533,15 +539,15 @@ sub start {
                 $ptag eq 'h1' or $ptag eq 'h2' or $ptag eq 'h3' or 
                 $ptag eq 'h4' or $ptag eq 'h5' or $ptag eq 'h6'
             ) {
-                $self->end($ptag);
+                $self->end(\$ptag);
             }
         } elsif ($tag eq 'li') { # list item
             # Get under a list tag, one way or another
-            $self->end('*', keys %isList) || $self->insert_element('ul', 1);
+            $self->end(\'*', keys %isList) || $self->insert_element('ul', 1); #'
             
         } elsif ($tag eq 'dt' || $tag eq 'dd') {
             # Get under a DL, one way or another
-            $self->end('*', 'dl') || $self->insert_element('dl', 1);
+            $self->end(\'*', 'dl') || $self->insert_element('dl', 1); #'
             
         } elsif ($isFormElement{$tag}) {
             unless($pos->is_inside('form')) {
@@ -552,7 +558,7 @@ sub start {
             }
             if ($tag eq 'option') {
                 # return unless $ptag eq 'select';
-                $self->end('option');
+                $self->end(\'option'); #'
                 $ptag = $self->pos->tag;
                 unless($ptag eq 'select' or $ptag eq 'optgroup') {
                     print $indent, " * \U$tag\E makes an implicit SELECT.\n"
@@ -564,7 +570,7 @@ sub start {
             }
         } elsif ($isTableElement{$tag}) {
             
-            $self->end($tag, 'table');
+            $self->end(\$tag, 'table'); #'
             # Hmm, I guess this is right.  To work it out:
             #   tr closes any open tr (limited at a table)
             #   td closes any open td (limited at a table)
@@ -750,28 +756,34 @@ sub start {
 sub end {
     my($self, $tag, @stop) = @_;
 
-    # End the specified tag, but don't move above any of the @stop tags.
+    # This method accepts two calling formats:
+    #  1) from Parser:  $self->end('tag_name', 'origtext')
+    #        in which case we shouldn't mistake origtext as a blocker tag
+    #  2) from myself:  $self->end(\'tagname1', 'blk1', ... )
+    #     from myself:  $self->end(['tagname1', 'tagname2'], 'blk1',  ... )
+    
+    # End the specified tag, but don't move above any of the blocker tags.
     # The tag can also be a reference to an array.  Terminate the first
     # tag found.
-
+    
     my $p = $self->{'_pos'};
     $p = $self unless defined($p);
-
+    
+    if(ref($tag)) {
+      # First param is a ref of one sort or another --
+      #  THE CALL IS COMING FROM INSIDE THE HOUSE!
+      $tag = $$tag if ref($tag) eq 'SCALAR';
+       # otherwise it's an arrayref.
+    } else {
+      # the call came from Parser -- just ignore origtext
+      @stop = ();
+    }
+    
     my($indent);
     if($Debug) {
       # optimization -- don't figure out depth unless we're in debug mode
       my @lineage_tags = $p->lineage_tag_names;
       $indent = '  ' x (1 + @lineage_tags);
-      
-      shift @stop
-       if
-        @stop == 1
-        and !ref($stop[0])
-        and substr($stop[0],0,2) eq '</'
-        # HTML::Parser will call us with the original text of the end tag
-        # as the 2nd argument.  We shouldn't (mis)interpret it as
-        # a "no higher than" limitation.
-      ;
       
       # now announce ourselves
       print $indent, "Ending ",
@@ -946,7 +958,7 @@ sub text {
               print $indent,
                 " * Text node under HEAD closes HEAD, implicates BODY and P.\n"
                if $Debug > 1;
-              $self->end('head');
+              $self->end(\'head'); #'
               $pos =
                 $self->{'_body'}
                 ? ($self->{'_pos'} = $self->{'_body'}) # expected case
@@ -956,7 +968,7 @@ sub text {
               print $indent,
                 " * Text node under HEAD closes, implicates BODY.\n"
                if $Debug > 1;
-              $self->end('head');
+              $self->end(\'head'); #'
               $pos =
                 $self->{'_body'}
                 ? ($self->{'_pos'} = $self->{'_body'}) # expected case
@@ -1032,6 +1044,93 @@ sub text {
 
 #==========================================================================
 
+# TODO: test whether comment(), declaration(), and process(), do the right
+#  thing as far as tightening and whatnot.
+# Also, currently, doctypes and comments that appear before head or body
+#  show up in the tree in the wrong place.  Something should be done about
+#  this.  Tricky.  Maybe this whole business of pre-making the body and
+#  whatnot is wrong.
+
+sub comment {
+  #TODO: document this
+
+  return unless $_[0]->{'_store_comments'};
+  my($self, $text) = @_;
+  my $pos = $self->{'_pos'} || $self;
+  
+  if($Debug) {
+    my @lineage_tags = $pos->lineage_tag_names;
+    my $indent = '  ' x (1 + @lineage_tags);
+    
+    my $nugget = (length($text) <= 25) ? $text : (substr($text,0,25) . '...');
+    $nugget =~ s<([\x00-\x1F])>
+                 <'\\x'.(unpack("H2",$1))>eg;
+    print
+      $indent, "Proposing a Comment ($nugget) under ",
+      join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
+      ".\n";
+  }
+  (my $e = HTML::Element->new('~comment'))->{'text'} = $text;
+  $pos->push_content($e);
+  
+  return;
+}
+
+#==========================================================================
+sub declaration {
+  #TODO: document this
+
+  return unless $_[0]->{'_store_declarations'};
+  my($self, $text) = @_;
+  my $pos = $self->{'_pos'} || $self;
+  
+  if($Debug) {
+    my @lineage_tags = $pos->lineage_tag_names;
+    my $indent = '  ' x (1 + @lineage_tags);
+    
+    my $nugget = (length($text) <= 25) ? $text : (substr($text,0,25) . '...');
+    $nugget =~ s<([\x00-\x1F])>
+                 <'\\x'.(unpack("H2",$1))>eg;
+    print
+      $indent, "Proposing a Declaration ($nugget) under ",
+      join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
+      ".\n";
+  }
+  (my $e = HTML::Element->new('~declaration'))->{'text'} = $text;
+  $pos->push_content($e);
+  
+  return;
+}
+
+#==========================================================================
+
+sub process {
+  #TODO: document this
+
+  return unless $_[0]->{'_store_pis'};
+  my($self, $text) = @_;
+  my $pos = $self->{'_pos'} || $self;
+  
+  if($Debug) {
+    my @lineage_tags = $pos->lineage_tag_names;
+    my $indent = '  ' x (1 + @lineage_tags);
+    
+    my $nugget = (length($text) <= 25) ? $text : (substr($text,0,25) . '...');
+    $nugget =~ s<([\x00-\x1F])>
+                 <'\\x'.(unpack("H2",$1))>eg;
+    print
+      $indent, "Proposing a PI ($nugget) under ",
+      join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
+      ".\n";
+  }
+  (my $e = HTML::Element->new('~pi'))->{'text'} = $text;
+  $pos->push_content($e);
+  
+  return;
+}
+
+#==========================================================================
+
 #When you call $tree->parse_file($filename), and the
 #tree's ignore_ignorable_whitespace attribute is on (as it is
 #by default), HTML::TreeBuilder's logic will manage to avoid
@@ -1053,6 +1152,21 @@ sub eof {
   my $x = $_[0];
   print "EOF received.\n" if $Debug;
   my $rv = $x->SUPER::eof(); # assumes a scalar return value
+  
+  unless($x->{'_implicit_tags'}) {
+    # delete those silly implicit head and body in case we put
+    # them there in implicit tags mode
+    foreach my $node ($x->{'_head'}, $x->{'_body'}) {
+      $node->replace_with_content
+       if $node and $node->{'_implicit'} and $node->{'_parent'};
+       # I think they should be empty anyhow, since the only
+       # logic that'd insert under them can apply only, I think,
+       # in the case where _implicit_tags is on
+    }
+    # this may still leave an implicit 'html' at the top, but there's
+    # nothing we can do about that, is there?
+  }
+  
   $x->tighten_up()  # this's why we trap this -- an after-method
    if $x->{'_tighten'} and ! $x->{'_ignore_text'};
   return $rv;

@@ -1,6 +1,13 @@
  
-# Time-stamp: "1999-12-19 15:13:55 MST"
+# Time-stamp: "2000-03-08 01:32:06 MST"
 package HTML::Element;
+
+# TODO: add 'are_element_identical' method ?
+# TODO: add 'are_content_identical' method ?
+# TODO: maybe alias ->destroy to ->delete ?
+# TODO: add a new, better traverser?
+# TODO: have use a HTML::Tagset or something (to write)
+# TODO: provide 
 
 =head1 NAME
 
@@ -142,7 +149,7 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.45';
+$VERSION = '1.48';
 sub Version { $VERSION; }
 
 $html_uc = 0;
@@ -155,6 +162,8 @@ $html_uc = 0;
                                      input area param
                                      embed bgsound spacer
                                      basefont col frame
+                                     ~comment ~literal
+                                     ~declaration ~pi
                                     );
 %optionalEndTag = map { $_ => 1 } qw(p li dt dd); # option th tr td);
 
@@ -389,6 +398,19 @@ sub attr
 }
 
 
+=item $h->all_attr()
+
+Returns all this element's attributes and values, as attribute-value pairs.
+
+=cut
+
+sub all_attr {
+  return %{$_[0]};
+  # Yes, trivial.  But no other way for the user to do the same
+  #  without breaking encapsulation.
+  # And if our object representation changes, this method's behavior
+  #  should stay the same.
+}
 
 #==========================================================================
 
@@ -549,7 +571,6 @@ sub splice_content {
 }
 
 
-
 =item $h->detach()
 
 This unlinks $h from its parent, by setting its 'parent' attribute to
@@ -598,14 +619,15 @@ sub replace_with_content {
   my $content_r = $self->{'_content'} || [];
   @$parent_content 
    = map { ( ref($_) and $_ eq $self) ? @$content_r : $_ }
-  @$parent_content;
+         @$parent_content
+  ;
 
   for (@$content_r) {  $_->{'_parent'} = $parent  }
 
   @$content_r = (); # unattach from old parent
   $self->{'_parent'} = undef; # detach old parent from its parent
 
-  return $self;
+  return $self;  # note, doesn't destroy it.
 }
 
 
@@ -669,6 +691,59 @@ sub delete
 }
 
 
+
+=item $h->clone()
+
+Returns a copy of the element (whose children are clones (recursively)
+of the original's children, if any).
+
+The returned element is parentless.  Any pos attributes present in the
+source element/tree will be absent in the copy.
+
+=cut
+
+sub clone {
+  #print "Cloning $_[0]\n";
+  my $it = shift;
+  Carp::croak "clone() can be called only as an object method" unless ref $it;
+  Carp::croak "clone() takes no arguments" if @_;
+
+  my $new = bless { %$it }, ref($it);     # COPY!!! HOOBOY!
+  delete @$new{'_content', '_parent', '_pos'};
+  
+  # clone any contents
+  $new->{'_content'} = [  ref($it)->clone_list( @{$it->{'_content'}} )  ]
+   if $it->{'_content'} and @{$it->{'_content'}};
+
+  return $new;
+}
+
+=item HTML::Element->clone_list(...nodes...)
+
+=item or: ref($h)->clone_list(...nodes...)
+
+Returns a list consisting of a copy of each node given.
+Text segments are simply copied; elements are cloned by
+calling $it->clone on each of them.
+
+=cut
+
+sub clone_list {
+  Carp::croak "I can be called only as a class method" if ref shift @_;
+  
+   # all that does is get me here
+  return
+    map
+      {
+        ref($_)
+          ? $_->clone   # copy by method
+          : $_  # copy by evaluation
+      }
+      @_
+  ;
+}
+
+
 #==========================================================================
 
 =back
@@ -713,57 +788,188 @@ sub dump
 
 =item $h->as_HTML() or $h->as_HTML($entities)
 
-Returns a string representing in HTML the the element and its
+=item or $h->as_HTML($entities, $indent_char)
+
+Returns a string representing in HTML the element and its
 children.  The optional argument C<$entities> specifies a string of
 the entities to encode.  For compatibility with previous versions,
 specify C<'E<lt>E<gt>&'> here.  If omitted or undef, I<all> unsafe
 characters are encoded as HTML entities.  See L<HTML::Entities> for
 details.
 
+If $indent_char is specified and defined, the HTML to be output is
+intented, using the string you specify (which you probably should
+set to "\t", or some number of spaces, if you specify it).  This
+feature is currently somewhat experimental.  But try it, and feel
+free to email me any bug reports.  (Note that output, although
+indented, is not wrapped.  Patches welcome.)
+
 =cut
 
 sub as_HTML
 {
-    my($self, $entities) = @_;
-    my @html = ();
+  my($self, $entities, $indent) = @_;
+  my $indent_on = defined($indent) && length($indent);
+  my @html = ();
+  
+  unless(defined $HTML::TreeBuilder::VERSION) {
+    require HTML::TreeBuilder or die "Can't require HTML::TreeBuilder";
+  }
+  
+  my $last_tag_tightenable = 0;
+  my $this_tag_tightenable = 0;
+  
+  my $nonindentable_ancestors = 0;  # count of nonindentible tags over us.
+  
+  my($tag, $node, $start, $depth); # per-iteration scratch
+  
+  if($indent_on) {
+    #require Text::Wrap;
     $self->traverse(
-        sub {
-            my($node, $start, $depth) = @_;
-            if (ref $node) {
-                my $tag = $node->tag;
-                if ($start) {
-                    push(@html, $node->starttag($entities));
-                } elsif (not($emptyElement{$tag} or $optionalEndTag{$tag})) {
-                    push(@html, $node->endtag);
-                }
+      sub {
+        ($node, $start, $depth) = @_;
+        if(ref $node) { # it's an element
+           
+           $tag = $node->tag;
+           
+           if($start) { # on the way in
+             if(
+                ($this_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag})
+                and !$nonindentable_ancestors
+                and $last_tag_tightenable
+             ) {
+               push
+                 @html,
+                 "\n",
+                 $indent x $depth,
+                 $node->starttag($entities),
+               ;
+             } else {
+               push(@html, $node->starttag($entities));
+             }
+             $last_tag_tightenable = $this_tag_tightenable;
+             
+             ++$nonindentable_ancestors
+               if $tag eq 'pre' or $tag eq 'xmp' or
+                $tag eq 'listing' or $tag eq 'plaintext' or 
+                $tag eq 'script'
+             ;
+             
+           } elsif (not($emptyElement{$tag} or $optionalEndTag{$tag})) {
+             # on the way out
+             if($tag eq 'pre' or $tag eq 'xmp' or
+                $tag eq 'listing' or $tag eq 'plaintext' or
+                $tag eq 'script'
+             ) {
+               --$nonindentable_ancestors;
+               $last_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag};
+               push @html, $node->endtag;
+               
+             } else { # general case
+               if(
+                  ($this_tag_tightenable = $HTML::TreeBuilder::canTighten{$tag})
+                  and !$nonindentable_ancestors
+                  and $last_tag_tightenable
+               ) {
+                 push
+                   @html,
+                   "\n",
+                   $indent x $depth,
+                   $node->endtag,
+                 ;
+               } else {
+                 push @html, $node->endtag;
+               }
+               $last_tag_tightenable = $this_tag_tightenable;
+               #print "$tag tightenable: $this_tag_tightenable\n";
+             }
+           }
+        } else {  # it's a text segment
+        
+          $last_tag_tightenable = 0;  # I guess this is right
+          HTML::Entities::encode_entities($node, $entities);
+            # that does magic things if $entities is undef
+          if($nonindentable_ancestors) {
+            push @html, $node; # say no go
+          } else {
+            if($last_tag_tightenable) {
+              $node =~ s<\s+>< >s;
+              #$node =~ s< $><>s;
+              $node =~ s<^ ><>s;
+              push
+                @html,
+                "\n",
+                $indent x $depth,
+                $node,
+                #Text::Wrap::wrap($indent x $depth, $indent x $depth, "\n" . $node)
+              ;
             } else {
-                # simple text content
-                HTML::Entities::encode_entities($node, $entities);
-                  # that does magic things if $entities is undef
-                push(@html, $node);
+              push
+                @html,
+                $node,
+                #Text::Wrap::wrap('', $indent x $depth, $node)
+              ;
             }
-            1;
+          }
+        }
+        1; # keep traversing
+      }
+    );
+    
+  } else { # no indenting -- much simpler code
+    $self->traverse(
+      sub {
+          ($node, $start, $depth) = @_;
+          if(ref $node) {
+            $tag = $node->tag;
+            if($start) { # on the way in
+              push(@html, $node->starttag($entities));
+            } elsif (not($emptyElement{$tag} or $optionalEndTag{$tag})) {
+              # on the way out
+              push(@html, $node->endtag);
+            }
+          } else {
+            # simple text content
+            HTML::Entities::encode_entities($node, $entities);
+              # that does magic things if $entities is undef
+            push(@html, $node);
+          }
+         1; # keep traversing
         }
     );
-    join('', @html, "\n");
+  }
+  
+  join('', @html, "\n");
 }
 
 
 
 =item $h->as_text()
 
+=item $h->as_text(skip_dels => 1)
+
 Returns a string that represents only the text parts of the element's
 descendants.  Entities are decoded to corresponding ISO-8859-1
 (Latin-1) characters.  See L<HTML::Entities> for more information.
 
+If C<skip_dels> is true, then text content under "del" nodes is not
+included in what's returned.
+
 =cut
 
 sub as_text {
-    my $self = shift;
+    my($self,%options) = @_;
+    
     my @text = ();
+    my $skip_dels = $options{'skip_dels'} || 0;
+    #print "Skip dels: $skip_dels\n";
     $self->traverse(
         sub {
-            unless(ref $_[0]) {
+            if(ref $_[0]) {
+                #print "Tag: $_[0]{'_tag'}\n";
+                return 0 if $skip_dels and $_[1] and $_[0]{'_tag'} eq 'del';
+                # else just fall thru to returning 1.
+            } else {
                 # simple text content
                 push(@text, $_[0]); # copies it
                 scalar HTML::Entities::decode_entities($text[-1]);
@@ -806,7 +1012,28 @@ C<'&"E<gt>'> were specified for $entities.)
 sub starttag
 {
     my($self, $entities) = @_;
+    
     my $name = $self->{'_tag'};
+    
+    # TODO: document these...
+    return        $self->{'text'}        if $name eq '~literal';
+    
+    return "<!" . $self->{'text'} . ">" if $name eq '~declaration';
+    
+    return "<?" . $self->{'text'} . "?>" if $name eq '~pi';
+    
+    if($name eq '~comment') {
+      if(ref($self->{'text'} || '') eq 'ARRAY') {
+        return 
+          "<!" .
+          join(' ', map("--$_--", @{$self->{'text'}}))
+          .  ">"
+       ;
+      } else {
+        return "<!--" . $self->{'text'} . "-->"
+      }
+    }
+    
     my $tag = $html_uc ? "<\U$name" : "<\L$name";
     my $val;
     for (sort keys %$self) { # predictable ordering
@@ -1311,6 +1538,10 @@ will return the value 'es-MX'.
 
 =cut
 
+# TODO: make a syntax supporting multiple attributes at once,
+#  so that one could do: $x->attr_get_i('lang', 'xml:lang') ?
+#  ditto for attr_get
+
 sub attr_get_i {
   my $self = $_[0];
   Carp::croak "Attribute name must be a defined value!" unless defined $_[1];
@@ -1395,6 +1626,222 @@ sub extract_links
     \@links;
 }
 
+#--------------------------------------------------------------------------
+
+=item $h->same_as($i)
+
+Returns true if $h and $i are both elements representing the same tree
+of elements, each with the same tag name, with the same explicit
+attributes (i.e., not counting attributes whose names start with "_"),
+and with the same content (textual, comments, etc.).
+
+Sameness of descendant elements is tested, recursively, with
+C<$child1-E<gt>same_as($child_2)>, and sameness of text segments is tested
+with C<$segment1 eq $segment2>.
+
+=cut
+
+sub same_as {
+  die "same_as() takes only one argument: \$h->same_as(\$i)" unless @_ == 2;
+  my($h,$i) = @_[0,1];
+  die "same_as() can be called only as an object method" unless ref $h;
+
+  return 0 unless defined $i and ref $i;
+   # An element can't be same_as anything but another element!
+   # They needn't be of the same class, tho.
+
+  return 1 if $h eq $i;
+   # special (if rare) case: anything is the same as... itself!
+  
+  # assumes that no content lists in/under $h or $i contain subsequent
+  #  text segments, like: ['foo', ' bar']
+  
+  # compare attributes now.
+  #print "Comparing tags of $h and $i...\n";
+
+  return 0 unless $h->{'_tag'} eq $i->{'_tag'};
+    # only significant attribute whose name starts with "_"
+  
+  #print "Comparing attributes of $h and $i...\n";
+  # Compare attributes, but only the real ones.
+  {
+    # Bear in mind that the average element has very few attributes,
+    #  and that element names are rather short.
+    # (Values are a different story.)
+    
+    my @keys_h = sort grep {length $_ and substr($_,0,1) ne '_'} keys %$h;
+    my @keys_i = sort grep {length $_ and substr($_,0,1) ne '_'} keys %$i;
+    
+    #print '<', join(',', @keys_h), '> =?= <', join(',', @keys_i), ">\n";
+    
+    return 0 unless @keys_h == @keys_i;
+     # different number of real attributes?  they're different.
+    for(my $x = 0; $x < @keys_h; ++$x) {
+      return 0 unless
+       $keys_h[$x] eq $keys_i[$x] and  # same key name
+       $h->{$keys_h[$x]} eq $i->{$keys_h[$x]}; # same value
+       # Should this test for definedness on values?
+       # People shouldn't be putting undef in attribute values, I think.
+    }
+  }
+  
+  #print "Comparing children of $h and $i...\n";
+  my $hcl = $h->{'_content'} || [];
+  my $icl = $i->{'_content'} || [];
+  
+  return 0 unless @$hcl == @$icl;
+   # different numbers of children?  they're different.
+  
+  if(@$hcl) {
+    # compare each of the children:
+    for(my $x = 0; $x < @$hcl; ++$x) {
+      if(ref $hcl->[$x]) {
+        return 0 unless ref($icl->[$x]);
+         # an element can't be the same as a text segment
+        # Both elements:
+        return 0 unless $hcl->[$x]->same_as($icl->[$x]);  # RECURSE!
+      } else {
+        return 0 if ref($icl->[$x]);
+         # a text segment can't be the same as an element
+        # Both text segments:
+        return 0 unless $hcl->[$x] eq $icl->[$x];
+      }
+    }
+  }
+  
+  return 1; # passed all the tests!
+}
+
+
+#--------------------------------------------------------------------------
+
+=item $h = HTML::Element->new_from_lol(ARRAYREF)
+
+Resursively constructs a tree of nodes, based on the (non-cyclic)
+data structure represented by ARRAYREF, where that is a reference
+to an array of arrays (of arrays (of arrays (etc.))).
+In each arrayref in that structure:  arrayrefs are considered to
+designate a sub-tree representing children for the node constructed
+from the current arrayref; hashrefs are considered to contain
+attribute-value pairs to add to the element to be constructed from
+the current arrayref; text segments at the start of any arrayref
+will be considered to specify the name of the element to be
+constructed from the current araryref; all other text segments will
+be considered to specify text segments as children for the current
+arrayref.
+
+An example will hopefully make this more obvious:
+
+  my $h = HTML::Element->new_from_lol(
+    ['html',
+      ['head',
+        [ 'title', 'I like stuff!' ],
+      ],
+      ['body',
+        {'lang', 'en-JP', _implicit => 1},
+        'stuff',
+        ['p', 'um, p < 4!', {'class' => 'par123'}],
+        ['div', {foo => 'bar'}, '123'],
+      ]
+    ]
+  );
+  $h->dump;
+
+Will print this:
+
+  <html> @0
+    <head> @0.0
+      <title> @0.0.0
+        "I like stuff!"
+    <body lang="en-JP"> @0.1 (IMPLICIT)
+      "stuff"
+      <p class="par123"> @0.1.1
+        "um, p < 4!"
+      <div foo="bar"> @0.1.2
+        "123"
+
+And printing $h->as_HTML will give something like:
+
+  <html><head><title>I like stuff!</title></head>
+  <body lang="en-JP">stuff<p class="par123">um, p &lt; 4!
+  <div foo="bar">123</div></body></html>
+
+=cut
+
+sub new_from_lol {
+  my $class = ref($_[0]) || $_[0]; # I /should/ be called as a class method!
+  my $lol = $_[1];
+
+  Carp::croak "first argument to new_from_lol mustn't be undef!"
+    unless defined $lol;
+  
+  Carp::croak
+   "first argument to new_from_lol must be an arrayref, not \"$lol\"!"
+    unless ref($lol) eq 'ARRAY';
+
+  my @ancestor_lols;
+   # So we can make sure there's no cyclicities in this lol.
+   # That would be perverse, but one never knows.
+  my($sub, $k, $v, $node); # last three are scratch values
+  $sub = sub {
+    #print "Building for $_[0]\n";
+    my $lol = $_[0];
+    return unless @$lol;
+    my(@attributes, @children);
+    Carp::croak "Cyclicity detected in source LOL tree, around $lol?!?"
+     if grep($_ eq $lol, @ancestor_lols);
+    push @ancestor_lols, $lol;
+
+    my $tag_name = 'null';
+
+    # Recursion in in here:
+    for(my $i = 0; $i < @$lol; ++$i) { # Iterate over children
+      if(ref($lol->[$i]) eq 'ARRAY') { # subtree: most common thing in loltree
+	push @children, $sub->($lol->[$i]);
+      } elsif(! ref($lol->[$i])) {
+	if($i == 0) { # name
+	  $tag_name = $lol->[$i];
+	} else { # text segment child
+	  push @children, $lol->[$i];
+	}
+      } elsif(ref($lol->[$i]) eq 'HASH') { # attribute hashref
+        keys %{$lol->[$i]}; # reset the each-counter, just in case
+	while(($k,$v) = each %{$lol->[$i]}) {
+	  push @attributes, lc($k), $v
+	    unless $k eq '_name' or $k eq '_content' or $k eq '_parent';
+	  # enforce /some/ sanity!
+	}
+      }
+      # else...?
+    }
+
+    pop @ancestor_lols;
+
+    #print "Children: @children\n";
+
+    $node = $class->new($tag_name); # finally construct
+
+    if($class eq __PACKAGE__) {  # Special-case it, for speed:
+      #print "Special cased\n";
+      %$node = (%$node, @attributes) if @attributes;
+      if(@children) {
+        $node->{'_content'} = \@children;
+        foreach my $c (@children) { $c->{'_parent'} = $node if ref $c }
+      }
+    } else {  # Do it the clean way...
+      #print "Done neatly\n";
+      while(@attributes) { $node->attr(splice @attributes,0,2) }
+      $node->push_content(@children) if @children;
+    }
+
+    return $node;
+  };
+
+  $node = $sub->($lol);
+  undef $sub; # so it won't be in its own frame, so its refcount can hit 0
+  return $node;
+}
+
 #==========================================================================
 1;
 
@@ -1405,7 +1852,7 @@ __END__
 =head1 BUGS
 
 * If you want to free the memory associated with a tree built of
-HTML::Element nodes then you will have to delete it explicitly.
+HTML::Element nodes, then you will have to delete it explicitly.
 See the $h->delete method, above.
 
 * There's almost nothing to stop you from making a "tree" with
@@ -1416,7 +1863,7 @@ and looking at the resulting trees, this will never be a problem
 for you.)
 
 * There's no way to represent comments or processing directives
-in a tree with HTML::Elements.
+in a tree with HTML::Elements.  Not yet, at least.
 
 =head1 SEE ALSO
 
@@ -1424,7 +1871,7 @@ L<HTML::AsSubs>, L<HTML::TreeBuilder>
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas, 1999 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas, 1999-2000 Sean M. Burke.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -1435,3 +1882,60 @@ Original author Gisle Aas E<lt>gisle@aas.noE<gt>; current maintainer
 Sean M. Burke, E<lt>sburke@netadventure.netE<gt>
 
 =cut
+
+If you've read the code this far, you need some hummus:
+
+EASY HUMMUS
+(Adapted from a recipe by Ralph Baccash (1937-2000))
+
+INGREDIENTS:
+
+  - The juice of two smallish lemons
+     (adjust to taste, and depending on how juicy the lemons are)
+  - 6 tablespoons of tahini
+  - 4 tablespoons of olive oil
+  - 5 big cloves of garlic, chopped fine
+  - salt to taste
+  - pepper to taste
+  - onion powder to taste
+  - pinch of coriander powder  (optional)
+  - big pinch of cumin
+Then:
+  - 2 16oz cans of garbanzo beans
+  - parsley, or Italian parsley
+  - a bit more olive oil
+
+PREPARATION:
+
+Drain one of the cans of garbanzos, discarding the juice.  Drain the
+other, reserving the juice.
+
+Peel the garbanzos (just pressing on each a bit until the skin slides
+off).  It will take time to peel all the garbanzos.  It's optional, but
+it makes for a smoother hummus.  Incidentally, peeling seems much
+faster and easier if done underwater -- i.e., if the beans are in a
+bowl under an inch or so of water.
+
+Now, in a blender, combine everything in the above list, starting at the
+top, stopping at (but including) the cumin.  Add one-third of the can's
+worth of the juice that you reserved.  Blend very well.  (For lack of a
+blender, I've done okay using a Braun hand-mixer.)
+
+Start adding the beans little by little, and keep blending, and
+increasing speeds until very smooth.  If you want to make the mix less
+viscous, add more of the reserved juice.  Adjust the seasoning as
+needed.
+
+Cover with chopped parsley, and a thin layer of olive oil.  The parsley
+is more or less optional, but the olive oil is necessary, to keep the
+hummus from discoloring.  Possibly sprinkle with paprika or red chile
+flakes.
+
+Serve at about room temperature, with warm pitas.  Possible garnishes
+include olives, peperoncini, tomato wedges.
+
+Variations on this recipe consist of adding or substituting other
+spices.  The garbanzos, tahini, lemon juice, and oil are the only really
+core ingredients, and note that their quantities are approximate.
+
+# End

@@ -1,4 +1,27 @@
-# Time-stamp: "1999-12-21 22:05:49 MST"
+# Time-stamp: "2000-03-08 01:23:45 MST"
+
+2000-03-08   Sean M. Burke <sburke@netadventure.net>
+
+   Release 0.63
+
+   Fixed a typo in the SYNOPSIS of TreeBuilder.pm: I had "->destroy" for
+   "->delete"!
+
+   Added $element->clone and HTML::Element->clone_list(nodes) methods,
+   as Marek Rouchal very helpfully suggested.
+
+   $tree->as_HTML can now indent, hopefully properly.  The logic to do
+   so is pretty frightening, and regrettably doesn't wrap, and it's
+   not obvious how to make it capable of doing so.
+
+   $tree->as_text can now take a 'skip_dels' parameter.
+
+   Added $h->same_as($j) method.
+
+   Added $h->all_attr method.
+
+   Added $h->new_from_lol constructor method.
+
 
 1999-12-18   Sean M. Burke <sburke@netadventure.net>
 
