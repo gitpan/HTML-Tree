@@ -81,7 +81,7 @@ use vars qw(@ISA $VERSION
 require HTML::Element;
 require HTML::Parser;
 @ISA = qw(HTML::Element HTML::Parser);
-$VERSION = sprintf("%d.%02d", q$Revision: 2.4 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 2.6 $ =~ /(\d+)\.(\d+)/);
 
 # Elements that should only be present in the header
 %isHeadElement = map { $_ => 1 } qw(title base link meta isindex script);
@@ -157,7 +157,7 @@ sub warn           { shift->_elem('_warn',           @_); }
 sub warning
 {
     my $self = shift;
-    warn "HTML::Parse: $_[0]\n" if $self->{'_warn'};
+    CORE::warn("HTML::Parse: $_[0]\n") if $self->{'_warn'};
 }
 
 sub start
