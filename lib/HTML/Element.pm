@@ -1,5 +1,5 @@
  
-# Time-stamp: "1999-12-15 21:46:09 MST"
+# Time-stamp: "1999-12-19 15:13:55 MST"
 package HTML::Element;
 
 =head1 NAME
@@ -9,8 +9,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 SYNOPSIS
 
   use HTML::Element;
-  $a = HTML::Element->new('a', href => 'http://www.oslonett.no/');
-  $a->push_content("Oslonett AS");
+  $a = HTML::Element->new('a', href => 'http://www.perl.com/');
+  $a->push_content("The Perl Homepage");
 
   $tag = $a->tag;
   print "$tag starts out as:",  $a->starttag, "\n";
@@ -28,7 +28,7 @@ HTML::Element - Class for objects that represent HTML elements
 Objects of the HTML::Element class can be used to represent elements
 of HTML.  These objects have attributes, notably attributes that
 designates the elements's parent and content.  The content is an array
-of text segments and other HTML::Element objects tree of HTML::Element
+of text segments and other HTML::Element objects.  A tree with HTML::Element
 objects as nodes can represent the syntax tree for a HTML document.
 
 =head1 HOW WE REPRESENT TREES
@@ -142,7 +142,7 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.44';
+$VERSION = '1.45';
 sub Version { $VERSION; }
 
 $html_uc = 0;
@@ -620,7 +620,6 @@ Returns $h.
 
 sub delete_content
 {
-    my $self = shift;
     for (@{ delete($_[0]->{'_content'})
               # Deleting it here (while holding its value, for the moment)
               #  will keep calls to detach from trying to uselessly filter
@@ -1037,6 +1036,9 @@ Returns the list of $h's ancestors, starting with its parent, and then
 that parent's parent, and so on, up to the root.  If $h is root, this
 returns an empty list.
 
+If you simply want a count of the number of elements in $h's lineage,
+use $h->depth.
+
 =cut
 
 #'
@@ -1073,26 +1075,40 @@ sub lineage_tag_names {
 
 =item $h->descendants()
 
-Returns the list of all $h's descendant elements, listed in pre-order
-(i.e., an element appears before its content-elements).  Text segments
-do not appear in the list.
+In list context, returns the list of all $h's descendant elements,
+listed in pre-order (i.e., an element appears before its
+content-elements).  Text segments do not appear in the list.
+In scalar context, returns a count of all such elements.
 
 =cut
 
 #'
 sub descendants {
   my $start = shift;
-  my @descendants;
-  $start->traverse(
-    sub {
-      return unless $_[1]; # work in pre-order
-      push(@descendants, $_[0]);
-      return 1;
-    },
-    1, # ignore text
-  );
-  shift @descendants; # so $self doesn't appear in the list
-  return @descendants;
+  if(wantarray) {
+    my @descendants;
+    $start->traverse(
+      sub {
+        return unless $_[1]; # work in pre-order
+        push(@descendants, $_[0]);
+        return 1;
+      },
+      1, # ignore text
+    );
+    shift @descendants; # so $self doesn't appear in the list
+    return @descendants;
+  } else { # just returns a scalar
+    my $descendants = -1; # to offset $self being counted
+    $start->traverse(
+      sub {
+        return unless $_[1]; # work in pre-order
+        ++$descendants;
+        return 1;
+      },
+      1, # ignore text
+    );
+    return $descendants;
+  }
 }
 
 
@@ -1100,8 +1116,6 @@ sub descendants {
 =item $h->traverse(\&callback)
 
 =item or $h->traverse(\&callback, $ignore_text)
-
-=item or $h->traverse(\&callback, $ignore_text, $verbose_for_text)
 
 Traverse the element and all of its children.  For each node visited, the
 callback routine is called with these arguments:
@@ -1123,9 +1137,8 @@ callback, then the children will not be traversed, nor will the
 callback be called in post-order for that node.
 
 If $ignore_text is given and false (so we I<do> visit text nodes,
-instead of ignoring them) and $verbose_for_text is given and true, then
-when text nodes are visited, we will also pass two extra arguments to
-the callback:
+instead of ignoring them), then when text nodes are visited, we will
+also pass two extra arguments to the callback:
 
     $_[3] : the element that's the parent
              of this text node
@@ -1141,7 +1154,7 @@ traversing it.)
 =cut
 
 sub traverse {
-  my($start, $callback, $ignore_text, $verbose_for_text) = @_;
+  my($start, $callback, $ignore_text) = @_;
   my $depth = 0;
 
   my $sub;
@@ -1160,13 +1173,10 @@ sub traverse {
         if(ref $children_r->[$i]) { # a real node
           $sub->( $children_r->[$i] ); # recurse.
         } else {
-          unless($ignore_text) { # a text node (scalar segment)
-            if($verbose_for_text) {
-              $callback->( $children_r->[$i], 1, $depth, $self, $i );
-            } else {
-              $callback->( $children_r->[$i], 1, $depth );
-            }
-          }
+          # a text node (scalar segment)
+          $callback->( $children_r->[$i], 1, $depth, $self, $i )
+           # yup, extra arguments
+            unless $ignore_text;
         }
       }
       --$depth;
@@ -1188,8 +1198,10 @@ sub traverse {
 
 =item $h->find_by_tag_name('tag', ...)
 
-Returns a list of elements at or under $h that have any of
-the specified tag names.
+In list context, returns a list of elements at or under $h that have
+any of the specified tag names.  In scalar context, returns the first
+(in pre-order traversal of the tree) such element found, or undef if
+none.
 
 =cut
 
@@ -1198,14 +1210,18 @@ sub find_by_tag_name {
   my($self) = shift;
   return() unless @_;
   my @tags = map lc($_), @_;
+  my $wantarray = wantarray;
   
   my @matching;
+  my $quit;
   $self->traverse(
     sub {
+      return 0 if $quit;
       return unless $_[1]; # in pre-order, not that it matters
       foreach my $t (@tags) {
         if($t eq $_[0]{'_tag'}) {
           push @matching, $_[0];
+          $quit = 1 unless $wantarray; # only take the first
           last; # found it.
         }
       }
@@ -1213,15 +1229,23 @@ sub find_by_tag_name {
     },
     1, # yes, ignore text nodes.
   );
-  return @matching;
+
+  if($wantarray) {
+    return @matching;
+  } else {
+    return undef unless @matching;
+    return $matching[0];
+  }
 }
 
 
 
 =item $h->find_by_attribute('attribute', 'value')
 
-Returns a list of elements at or under $h that have the specified
-attribute, and have the given value for that attribute.
+In a list context, returns a list of elements at or under $h that have
+the specified attribute, and have the given value for that attribute.
+In a scalar context, returns the first (in pre-order traversal of the
+tree) such element found, or undef if none.
 
 =cut
 
@@ -1233,26 +1257,40 @@ sub find_by_attribute {
   $attribute = lc $attribute;
   
   my @matching;
+  my $wantarray = wantarray;
+  my $quit;
   $self->traverse(
     sub {
+      return 0 if $quit;
       return unless $_[1]; # in pre-order, not that it matters
-      push @matching, $_[0]
-        if exists $_[0]{$attribute}
-           and $_[0]{$attribute} eq $value;
+      if( exists $_[0]{$attribute}
+           and $_[0]{$attribute} eq $value
+      ) {
+        push @matching, $_[0];
+        $quit = 1 unless $wantarray;
+      }
       1; # keep traversing
     },
     1, # yes, ignore text nodes.
   );
-  return @matching;
+
+  if($wantarray) {
+    return @matching;
+  } else {
+    return undef unless @matching;
+    return $matching[0];
+  }
 }
 
 
 
 =item $h->attr_get_i('attribute')
 
-Returns a list consisting of the values of the given attribute for
-$self and for all its ancestors starting from $self and working its
-way up.  Nodes with no such attribute are skipped.
+In list context, returns a list consisting of the values of the given
+attribute for $self and for all its ancestors starting from $self and
+working its way up.  Nodes with no such attribute are skipped.
+("attr_get_i" stands for "attribute get, with inheritance".)
+In scalar context, returns the first such value, or undef if none.
 
 Consider a document consisting of:
 
@@ -1267,8 +1305,9 @@ Consider a document consisting of:
      </body>
    </html>
 
-If $h is the "cite" element, $h->attr_get_i("lang") will return the
-list ('es-MX', 'i-klingon').
+If $h is the "cite" element, $h->attr_get_i("lang") in list context
+will return the list ('es-MX', 'i-klingon').  In scalar context, it
+will return the value 'es-MX'.
 
 =cut
 
@@ -1276,11 +1315,19 @@ sub attr_get_i {
   my $self = $_[0];
   Carp::croak "Attribute name must be a defined value!" unless defined $_[1];
   my $attribute = lc $_[1];
-  return
-    map {
-      exists($_->{$attribute}) ? $_->{$attribute} : ()
-    } $self, $self->lineage;
-  ;
+  if(wantarray) { # list context
+    return
+      map {
+        exists($_->{$attribute}) ? $_->{$attribute} : ()
+      } $self, $self->lineage;
+    ;
+  } else { # scalar context
+    # otherwise, we're in scalar context
+    foreach my $x ($self, $self->lineage) {
+      return $x->{$attribute} if exists $x->{$attribute}; # found
+    }
+    return undef; # never found
+  }
 }
 
 

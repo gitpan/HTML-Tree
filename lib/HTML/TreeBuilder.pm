@@ -1,5 +1,5 @@
 
-# Time-stamp: "1999-12-15 21:56:58 MST"
+# Time-stamp: "1999-12-21 12:56:35 MST"
 package HTML::TreeBuilder;
 
 =head1 NAME
@@ -192,7 +192,7 @@ $Debug = 0 unless defined $Debug;
 require HTML::Element;
 require HTML::Parser;
 @ISA = qw(HTML::Element HTML::Parser);
-$VERSION = '2.91';
+$VERSION = '2.92';
 
 #==========================================================================
 # List of all elements from Extensible HTML version 1.0 Transitional DTD:
@@ -424,7 +424,7 @@ sub start {
       $indent = '  ' x (1 + @lineage);
       print
         $indent, "Proposing a new \U$tag\E under ",
-        join('/', map $_->{'_tag'}, @lineage),
+        join('/', map $_->{'_tag'}, reverse($pos, @lineage)) || 'Root',
         ".\n";
     #} else {
     #  $indent = ' ';
@@ -730,7 +730,12 @@ sub start {
       if($self->{'_pos'}) {
         print
           $indent, "(Current lineage of pos:  \U$tag\E under ",
-          join('/', reverse $self->{'_pos'}->lineage_tag_names),
+          join('/',
+            reverse(
+              # $self->{'_pos'}{'_tag'},  # don't list myself!
+              $self->{'_pos'}->lineage_tag_names
+            )
+          ),
           ".)\n";
       } else {
         print $indent, "(Pos points nowhere!?)\n";
@@ -896,16 +901,18 @@ sub end {
 #==========================================================================
 
 sub text {
-    my $self = shift;
+    my($self, $text, $is_cdata) = @_;
+      # the >3.0 versions of Parser may pass a cdata node.
+      # Thanks to Gisle Aas for pointing this out.
+    
+    return unless length $text; # I guess that's always right
+    
     my $ignore_text = $self->{'_ignore_text'};
-
+    
     my $pos = $self->{'_pos'};
     $pos = $self unless defined($pos);
-
-    my $text = shift;
-    return unless length $text;
-
-    HTML::Entities::decode($text) unless $ignore_text;
+    
+    HTML::Entities::decode($text) unless $ignore_text || $is_cdata;
     
     my($indent, $nugget);
     if($Debug) {
@@ -918,7 +925,7 @@ sub text {
                  <'\\x'.(unpack("H2",$1))>eg;
       print
         $indent, "Proposing a new text node ($nugget) under ",
-        join('/', reverse @lineage_tags),
+        join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
         ".\n";
       
     #} else {
@@ -940,27 +947,40 @@ sub text {
                 " * Text node under HEAD closes HEAD, implicates BODY and P.\n"
                if $Debug > 1;
               $self->end('head');
-              $pos = $self->{'_body'} || $self->insert_element('body', 1);
+              $pos =
+                $self->{'_body'}
+                ? ($self->{'_pos'} = $self->{'_body'}) # expected case
+                : $self->insert_element('body', 1);
               $pos = $self->insert_element('p', 1);
             } else {
               print $indent,
                 " * Text node under HEAD closes, implicates BODY.\n"
                if $Debug > 1;
               $self->end('head');
-              $pos = $self->{'_body'} || $self->insert_element('body', 1);
+              $pos =
+                $self->{'_body'}
+                ? ($self->{'_pos'} = $self->{'_body'}) # expected case
+                : $self->insert_element('body', 1);
             }
         } elsif ($ptag eq 'html') {
             if($self->{'_implicit_body_p_tag'}) {
               print $indent,
                 " * Text node under HTML implicates BODY and P.\n"
                if $Debug > 1;
-              $pos = $self->{'_body'} || $self->insert_element('body', 1);
+              $pos =
+                $self->{'_body'}
+                ? ($self->{'_pos'} = $self->{'_body'}) # expected case
+                : $self->insert_element('body', 1);
               $pos = $self->insert_element('p', 1);
             } else {
               print $indent,
                 " * Text node under HTML implicates BODY.\n"
                if $Debug > 1;
-              $pos = $self->{'_body'} || $self->insert_element('body', 1);
+              $pos =
+                $self->{'_body'}
+                ? ($self->{'_pos'} = $self->{'_body'}) # expected case
+                : $self->insert_element('body', 1);
+              #print "POS is $pos, ", $pos->{'_tag'}, "\n";
             }
         } elsif ($ptag eq 'body') {
             if($self->{'_implicit_body_p_tag'}) {
@@ -988,6 +1008,14 @@ sub text {
         #         $ptag eq 'form') {
         #    $pos = $self->insert_element('p', 1);
         #}
+        
+        
+        # Whatever we've done above should have had the side
+        # effect of updating $self->{'_pos'}
+        
+                
+        #print "POS is now $pos, ", $pos->{'_tag'}, "\n";
+        
         return if $ignore_text;
         $text =~ s/\s+/ /g;  # canonical space
         
@@ -1028,6 +1056,31 @@ sub eof {
   $x->tighten_up()  # this's why we trap this -- an after-method
    if $x->{'_tighten'} and ! $x->{'_ignore_text'};
   return $rv;
+}
+
+#==========================================================================
+
+sub delete {
+  # Override Element's delete method.
+  # This does most, if not all, of what Element's delete does anyway.
+  # Deletes content, including content in some special attributes.
+  # But doesn't empty out the hash.
+
+  for (@{ delete($_[0]->{'_content'})
+          || []
+        }, # all/any content
+       delete @{$_[0]}{'_body', '_head', '_pos'}
+         # ...and these, in case these elements don't appear in the
+         #   content, which is possible.  If they did appear (as they
+         #   usually do), then calling $_->delete on them again is harmless.
+      )
+  {
+    $_->delete
+     if defined $_ and ref $_   #  Make sure it's an object.
+        and $_ ne $_[0];   #  And avoid hitting myself, just in case!
+  }
+
+  return undef;
 }
 
 #==========================================================================
@@ -1131,7 +1184,6 @@ sub tighten_up { # delete text nodes that are "ignorable whitespace"
       return;
     }, # End of the big traverser callback sub
     0, # Don't ignore text nodes.
-    1, # Report parent and pindex for text nodes
   );
   }
   

@@ -1,6 +1,6 @@
 
 package HTML::AsSubs;
-#Time-stamp: "1999-12-15 19:19:32 MST"
+#Time-stamp: "1999-12-18 00:04:22 MST"
 
 =head1 NAME
 
@@ -71,7 +71,7 @@ require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = '1.12';
+$VERSION = '1.13';
 
 use vars qw(@TAGS);
 @TAGS = qw(html

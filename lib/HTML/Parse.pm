@@ -1,48 +1,43 @@
-package HTML::Parse;
 
-# $Id: Parse.pm,v 2.6 1999/11/11 10:03:32 gisle Exp $
+package HTML::Parse;
+  # Time-stamp: "1999-12-20 12:11:34 MST"
 
 =head1 NAME
 
-HTML::Parse - Depreciated
+HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
 
 =head1 SYNOPSIS
 
- use HTML::Parse;
- $h = parse_htmlfile("test.html");
- print $h->dump;
- $h = parse_html("<p>Some more <i>italic</i> text", $h);
- $h->delete;
-
- print parse_htmlfile("index.html")->as_HTML;  # tidy up markup in a file
+  See the documentation for HTML::TreeBuilder
 
 =head1 DESCRIPTION
 
-I<Disclaimer: This module is only provided for backwards compatibility
-with earlier versions of this library.  New code shold use the
-HTML::Parser and HTML::TreeBuilder modules directly.>
+Disclaimer: This module is provided only for backwards compatibility
+with earlier versions of this library.  New code should I<not> use
+this module, and should really use the HTML::Parser and
+HTML::TreeBuilder modules directly, instead.
 
 The C<HTML::Parse> module provides functions to parse HTML documents.
 There are two functions exported by this module:
 
 =over 4
 
-=item parse_html($html, [$obj])
+=item parse_html($html) or parse_html($html, $obj)
 
 This function is really just a synonym for $obj->parse($html) and $obj
 is assumed to be a subclass of C<HTML::Parser>.  Refer to
 L<HTML::Parser> for more documentation.
 
-The $obj will default to an internally created C<HTML::TreeBuilder>
-object configured with strict_comment() turned on.  This class
-implements a parser that builds (and is) a HTML syntax tree with
-HTML::Element objects as nodes.
+If $obj is not specified, the $obj will default to an internally
+created new C<HTML::TreeBuilder> object configured with strict_comment()
+turned on.  That class implements a parser that builds (and is) a HTML
+syntax tree with HTML::Element objects as nodes.
 
 The return value from parse_html() is $obj.
 
 =item parse_htmlfile($file, [$obj])
 
-Same as parse_html(), but obtains HTML text from the named file.
+Same as parse_html(), but pulls the HTML to parse, from the named file.
 
 Returns C<undef> if the file could not be opened, or $obj otherwise.
 
@@ -80,6 +75,11 @@ false.
 
 =back
 
+=head1 REMEMBER!
+
+HTML::TreeBuilder objects should be explicitly destroyed when you're
+finished with them.  See L<HTML::TreeBuilder>.
+
 =head1 SEE ALSO
 
 L<HTML::Parser>, L<HTML::TreeBuilder>, L<HTML::Element>
@@ -93,7 +93,7 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas <gisle@aas.no>
+Gisle Aas E<lt>gisle@aas.noE<gt>
 
 =cut
 
@@ -104,7 +104,8 @@ require Exporter;
 
 use strict;
 use vars qw($VERSION
-            $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN);
+            $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN
+           );
 
 # Backwards compatability
 $IMPLICIT_TAGS  = 1;
@@ -114,7 +115,7 @@ $WARN           = 0;
 
 require HTML::TreeBuilder;
 
-$VERSION = sprintf("%d.%02d", q$Revision: 2.6 $ =~ /(\d+)\.(\d+)/);
+$VERSION = '2.7';
 
 
 sub parse_html ($;$)
@@ -136,11 +137,12 @@ sub parse_htmlfile ($;$)
 
 sub _new_tree_maker
 {
-    my $p = HTML::TreeBuilder->new(implicit_tags  => $IMPLICIT_TAGS,
-		 	           ignore_unknown => $IGNORE_UNKNOWN,
-			           ignore_text    => $IGNORE_TEXT,
-				   'warn'         => $WARN,
-				  );
+    my $p = HTML::TreeBuilder->new(
+      implicit_tags  => $IMPLICIT_TAGS,
+      ignore_unknown => $IGNORE_UNKNOWN,
+      ignore_text    => $IGNORE_TEXT,
+      'warn'         => $WARN,
+    );
     $p->strict_comment(1);
     $p;
 }

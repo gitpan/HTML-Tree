@@ -1,4 +1,36 @@
-# Time-stamp: "1999-12-15 21:57:51 MST"
+# Time-stamp: "1999-12-21 22:05:49 MST"
+
+1999-12-18   Sean M. Burke <sburke@netadventure.net>
+
+   Release 0.62
+
+   Incremented HTML::AsSubs version to 1.13, and HTML::Parse version
+   to 2.7, to avoid version confusion with the old (<0.60) HTML-Tree
+   dist.
+
+   Re-simplified the options to HTML::Element::traverse, removing the
+   verbose_for_text option.  (The behavior that it turned on, is now
+   always on; this should not cause any problems with any existing
+   code.)
+
+   Fixed HTML::Element::delete_content, and made an
+   HTML::TreeBuilder::delete to override it for TreeBuilder nodes,
+   which have their own special attributes.  
+
+   HTML::Element::find_by_attribute, find_by_attribute, and get_attr_i
+   now behave differently in scalar context, if you're the sort that
+   likes context on method calls.  HTML::Element::descendant is now
+   optimized in scalar context.
+
+   Fixed up some of the reporting of lineages in some $Debug-triggered
+   messages.
+
+   Fixed minor bug in updating pos when a text node under HTML
+   implicates BODY (and maybe P).
+
+   You should not use release 0.61
+
+   
 
 1999-12-15   Sean M. Burke <sburke@netadventure.net>
 
