@@ -1,7 +1,7 @@
 
-require 5; # -*-Text-*- Time-stamp: "2002-08-16 11:53:47 MDT"
+require 5; # -*-Text-*- Time-stamp: "2002-10-19 21:07:55 MDT"
 package HTML::Tree;
-$VERSION = $VERSION = 3.13;
+$VERSION = $VERSION = 3.14;
   # This is where the dist gets its version from.
 
 # Basically just a happy alias to HTML::TreeBuilder

@@ -1,6 +1,6 @@
 require 5.004;
 use ExtUtils::MakeMaker;
-# Time-stamp: "2002-07-30 01:11:24 MDT"
+# Time-stamp: "2002-08-27 20:28:03 MDT"
 
 WriteMakefile(
     'NAME'	   => 'HTML-Tree',

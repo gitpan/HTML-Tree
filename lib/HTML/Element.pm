@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2002-07-30 01:07:25 MDT"
+# Time-stamp: "2002-10-19 21:08:28 MDT"
 package HTML::Element;
 # TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
@@ -154,7 +154,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.12';
+$VERSION = '3.13';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -3516,6 +3516,7 @@ or MENU elements), and if there are, they are unaffected.
   #  module, and a roman numeral module too, but really, HTML-Tree already
   #  has enough dependecies as it is; and anyhow, I don't need the functions
   #  that do latin2int or roman2int.
+  no integer;
 
   sub _int2latin {
     return undef unless defined $_[0];
@@ -3532,11 +3533,11 @@ or MENU elements), and if there are, they are unaffected.
     return       uc(_i2l(     int $_[0] ));
   }
 
-  my @alpha = ('', 'a' .. 'z'); 
-
+  my @alpha = ('a' .. 'z'); 
   sub _i2l { # the real work
     my $int = $_[0] || return "";
-    _i2l(int (($int - 1) / 26)) . $alpha[$int % 26];  # yes, recursive
+    _i2l(int (($int - 1) / 26)) . $alpha[$int % 26 - 1];  # yes, recursive
+    # Yes, 26 => is (26 % 26 - 1), which is -1 => Z!
   }
 }
 
@@ -3586,7 +3587,7 @@ sub number_lists {
     if(($tag = ($this = shift @stack)->{'_tag'}) eq 'ol') {
       # Prep some things:
       $counter = (($this->{'start'} || '') =~ m<^\s*(\d{1,7})\s*$>s) ? $1 : 1;
-      $numberer = $list_type_to_sub{ $this->{'type'} }
+      $numberer = $list_type_to_sub{ $this->{'type'} || ''}
                || $list_type_to_sub{'1'};
 
       # Immeditately iterate over all children

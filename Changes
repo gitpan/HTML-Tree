@@ -1,4 +1,12 @@
-# Time-stamp: "2002-08-16 12:00:58 MDT"
+# Time-stamp: "2002-10-19 21:11:08 MDT"
+
+2002-10-19   Sean M. Burke <sburke@cpan.org>
+   Release 3.14 -- minor bugfix
+
+   Just fixes a few problems in HTML::Element with the number_lists
+   method.
+
+
 
 2002-08-16   Sean M. Burke <sburke@cpan.org>
 
