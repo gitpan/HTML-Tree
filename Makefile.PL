@@ -1,10 +1,10 @@
 require 5.004;
 use ExtUtils::MakeMaker;
-# Time-stamp: "2000-03-25 23:24:12 MST"
+# Time-stamp: "2000-05-18 23:58:37 MDT"
 
 WriteMakefile(
     'NAME'	   => 'HTML-Tree',
-    'VERSION'      => '0.65',
+    'VERSION'      => '0.66',
     'PREREQ_PM'    => {	
 	                 'HTML::Parser' => 2.19,   # at LEAST!
 		      },

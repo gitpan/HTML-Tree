@@ -1,6 +1,7 @@
 
+require 5;
 package HTML::Parse;
-  # Time-stamp: "1999-12-20 12:11:34 MST"
+  # Time-stamp: "2000-05-18 23:40:06 MDT"
 
 =head1 NAME
 
@@ -93,7 +94,8 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas E<lt>gisle@aas.noE<gt>
+Gisle Aas E<lt>gisle@aas.noE<gt>.  Current maintainer
+Sean M. Burke E<lt>sburke@cpan.orgE<gt>
 
 =cut
 
@@ -115,7 +117,7 @@ $WARN           = 0;
 
 require HTML::TreeBuilder;
 
-$VERSION = '2.7';
+$VERSION = '2.71';
 
 
 sub parse_html ($;$)

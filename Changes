@@ -1,4 +1,22 @@
-# Time-stamp: "2000-03-26 20:31:59 MST"
+# Time-stamp: "2000-05-18 23:42:24 MDT"
+
+2000-05-18   Sean M. Burke  <sburke@cpan.org>
+
+   Release 0.66
+
+   Noting my new email address.
+
+   Fixed bug in HTML::Element::detach_content -- it would return
+   empty-list, instead of returing the nodes detached.
+
+   Fixed big in HTML::Element::replace_with_content -- it would
+   accidentally completely kill the parent's content list!
+   Thanks to Reinier Post and others for spotting this error.
+
+   Fixed big in HTML::Element::replace_with -- it put replacers
+   in the content list of of the new parent, !but! forgot to update
+   each replacer's _parent attribute.
+   Thanks to Matt Sisk for spotting this error.
 
 
 2000-03-26   Sean M. Burke  <sburke@netadventure.net>

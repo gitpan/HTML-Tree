@@ -11,4 +11,6 @@ lib/HTML/TreeBuilder.pm
 t/oldparse.t
 t/parsefile.t
 t/split.t
+t/building.t
+t/clonei.t
 htmltree

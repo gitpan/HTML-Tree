@@ -1,11 +1,13 @@
 
-# Time-stamp: "2000-03-26 20:11:31 MST"
+require 5;
+# Time-stamp: "2000-05-18 23:45:57 MDT"
 package HTML::Element;
 
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
 # TODO: maybe alias ->destroy to ->delete ?
 # TODO: have use a HTML::Tagset or something (to write)
+# TODO: have address() take relative address. (".3.1")
 
 =head1 NAME
 
@@ -124,8 +126,8 @@ relatedness attributes (_parent and _content) of these element-objects
 and from how you use them to get from element to element.
 
 While you could access the content of a tree by writing code that says
-"access the 'src' attribute of the root's first child's seventh
-child's third child", you're more likely to have to scan the contents
+"access the 'src' attribute of the root's I<first> child's I<seventh>
+child's I<third> child", you're more likely to have to scan the contents
 of a tree, looking for whatever nodes, or kinds of nodes, you want to
 do something with.  The most straightforward way to look over a tree
 is to "traverse" it; an HTML::Element method ($h->traverse) is
@@ -133,7 +135,8 @@ provided for this purpose; and several other HTML::Element methods are
 based on it.
 
 (For everything you ever wanted to know about trees, and then some,
-see Donald Knuth's I<The Art of Computer Programming, Volume 1>.)
+see Niklaus Wirth's I<Algorithms + Data Structures = Programs> or
+Donald Knuth's I<The Art of Computer Programming, Volume 1>.)
 
 =cut
 
@@ -148,7 +151,7 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.53';
+$VERSION = '1.54';
 sub Version { $VERSION; }
 
 # Constants for signalling back to the traverser:
@@ -282,9 +285,13 @@ sub new
 
 Returns (optionally sets) the value of the given attribute of $h.  The
 attribute name (but not the value, if provided) is forced to
-lowercase.  If setting a new value, the old value of that attribute is
-returned.  If methods are provided for accessing an attribute (like
-$h->tag, $h->content_list, etc. below), use those instead of calling
+lowercase.  If trying to read the value of an attribute not present
+for this element, the return value is undef.
+If setting a new value, the old value of that attribute is
+returned.
+
+If methods are provided for accessing an attribute (like $h->tag for
+"_tag", $h->content_list, etc. below), use those instead of calling
 attr $h->attr, whether for reading or setting.
 
 Note that setting an attribute to undef (as opposed to "", the empty
@@ -416,7 +423,7 @@ sub content
 =item $h->implicit() or $h->implicit($bool)
 
 Returns (optionally sets) the "_implicit" attribute.  This attribute is
-a flag that's used to indicate that the element was not originally
+a flag that's used for indicating that the element was not originally
 present in the source, but was added to the parse tree (by
 HTML::TreeBuilder, for example) in order to conform to the rules of
 HTML structure.
@@ -432,7 +439,7 @@ sub implicit
 
 =item $h->pos() or $h->pos($element)
 
-Returns (and optionally sets) the "_pos" (for "current position")
+Returns (and optionally sets) the "_pos" (for "current I<pos>ition")
 pointer of $h.
 This attribute is a pointer used during some parsing operations,
 whose value is whatever HTML::Element element at or under $h is
@@ -490,7 +497,7 @@ sub all_attr {
 
 =item $h->all_external_attr()
 
-Like all_attr, except that internal attributes are not present.
+Like C<all_attr>, except that internal attributes are not present.
 
 =cut
 
@@ -700,8 +707,7 @@ can just use $h->delete_content.
 sub detach_content {
   my $c = $_[0]->{'_content'} || return(); # in case of no content
   for (@$c) { $_->{'_parent'} = undef if ref $_; }
-  @$c = (); # just in case something somewhere else holds a ref to this.
-  return @$c;
+  return splice @$c;
 }
 
 
@@ -741,11 +747,12 @@ sub replace_with {
       Carp::croak "Can't replace an item with its parent!";
     } else {
       $_->detach;
-      # this must happen 
+      $_->{'_parent'} = $parent;
+      # each of these are necessary
     }
   }
   
-  my $content_r = $self->{'_content'} || [];
+  #my $content_r = $self->{'_content'} || [];
   @$parent_content 
    = map { ( ref($_) and $_ eq $self) ? @replacers : $_ }
          @$parent_content
@@ -801,8 +808,7 @@ sub replace_with_content {
   Carp::croak "the target node has no parent"
     unless my($parent) = $self->{'_parent'};
 
-  my $parent_content = delete $parent->{'_content'};
-    #unattach from old parent
+  my $parent_content = $parent->{'_content'};
   Carp::croak "the target node's parent has no content!?" 
    unless $parent_content and @$parent_content;
 
@@ -812,15 +818,12 @@ sub replace_with_content {
          @$parent_content
   ;
 
-  # update parentage link
-  for (@$content_r) {  $_->{'_parent'} = $parent if ref $_ }
-  
-  @$content_r = ();
-  # just in case something somewhere else holds a ref to this.
+  $self->{'_parent'} = undef; # detach $self from its parent
 
-  $self->{'_parent'} = undef; # detach old parent from its parent
+  # Update parentage link, removing from $self's content list
+  for (splice @$content_r) {  $_->{'_parent'} = $parent if ref $_ }
 
-  return $self;  # note, doesn't destroy it.
+  return $self;  # note: doesn't destroy it.
 }
 
 
@@ -838,7 +841,7 @@ sub delete_content
 {
     for (splice @{ delete($_[0]->{'_content'})
               # Deleting it here (while holding its value, for the moment)
-              #  will keep calls to detach from trying to uselessly filter
+              #  will keep calls to detach() from trying to uselessly filter
               #  the list (as they won't be able to see it once it's been
               #  deleted)
             || return($_[0]) # in case of no content
@@ -851,9 +854,6 @@ sub delete_content
         $_->delete if ref $_;
     }
     $_[0];
-    # Note that this doesn't null out the content list per se, just
-    #  deletes is from the node -- so if anything else holds a ref
-    #  to it, it may still think they're attached.
 }
 
 
@@ -1247,7 +1247,7 @@ sub as_HTML
 
 =item $h->as_text(skip_dels => 1)
 
-Returns a string that represents only the text parts of the element's
+Returns a string consisting of only the text parts of the element's
 descendants.  Entities are decoded to corresponding ISO-8859-1
 (Latin-1) characters.  See L<HTML::Entities> for more information.
 
@@ -1303,12 +1303,12 @@ sub format
 Returns a string representing the complete start tag for the element.
 I.e., leading "<", tag name, attributes, and trailing ">".  Attributes
 values that don't consist entirely of digits are surrounded with
-double-quotes, and appropriate characters are encoded.  If $entities
+double-quotes, and appropriate characters are encoded.  If C<$entities>
 is omitted or undef, I<all> unsafe characters are encoded as HTML
 entities.  See L<HTML::Entities> for details.  If you specify some
-value for $entities, remember to include the double-quote character in
+value for C<$entities>, remember to include the double-quote character in
 it.  (Previous versions of this module would basically behave as if
-C<'&"E<gt>'> were specified for $entities.)
+C<'&"E<gt>'> were specified for C<$entities>.)
 
 =cut
 
@@ -1461,7 +1461,7 @@ al are constants.  So if you're running under C<use strict>
 (as I hope you are), and you say:
 C<return HTML::Element::PRUEN>
 the compiler will flag this as an error (an unallowable
-bareword, in fact), whereas if you spell PRUNE correctly,
+bareword, specifically), whereas if you spell PRUNE correctly,
 the compiler will not complain.
 
 =item undef, 0, '0', '', or HTML::Element::PRUNE
@@ -1524,7 +1524,7 @@ traversing it.)
 # So, why all this hassle with making the code iterative?
 # It makes for real speed, because it eliminates the whole
 # hassle of Perl having to allocate scratch space for each
-# instance of the recursive sub uses.  Since the algorithm
+# instance of the recursive sub.  Since the algorithm
 # is basically simple (and not all recursive ones are!) and
 # has few necessary lexicals (basically just the current node's
 # content list, and the current position in it), it was relatively
@@ -1728,14 +1728,12 @@ sub is_inside {
 
   my $current = $self;
       # the loop starts by looking at the given element
-  my $current_tag;
   while (defined $current and ref $current) {
-    $current_tag = $current->{'_tag'};
     for (@_) {
       if(ref) { # element
         return 1 if $_ eq $current;
       } else { # tag name
-        return 1 if $_ eq $current_tag;
+        return 1 if $_ eq $current->{'_tag'};
       }
     }
     $current = $current->{'_parent'};
@@ -1810,7 +1808,8 @@ then you're there -- then that node's address is "0.2.10.0".
 
 As a bit of a special case, the address of the root is simply "0".
 
-I forsee this being used mainly for debugging.
+I forsee this being used mainly for debugging, but you may
+find your own uses for it.
 
 =item $h->address($address)
 
@@ -1905,7 +1904,7 @@ use $h->depth.
 
 #'
 sub lineage {
-  my $here = my $start = shift;
+  my $here = shift;
   my @lineage;
   while(defined($here = $here->{'_parent'}) and ref($here)) {
     push @lineage, $here;
@@ -2030,6 +2029,7 @@ tree) such element found, or undef if none.
 
 =cut
 
+#TODO: make it take multiple attributes, and AND and OR them.
 
 sub find_by_attribute {
   # We could limit this to non-internal attributes, but hey.
@@ -2585,7 +2585,7 @@ modify it under the same terms as Perl itself.
 =head1 AUTHOR
 
 Original author Gisle Aas E<lt>gisle@aas.noE<gt>; current maintainer
-Sean M. Burke, E<lt>sburke@netadventure.netE<gt>
+Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
 
 =cut
 

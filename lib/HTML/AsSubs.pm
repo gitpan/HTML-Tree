@@ -1,6 +1,7 @@
 
+require 5;
 package HTML::AsSubs;
-#Time-stamp: "1999-12-18 00:04:22 MST"
+#Time-stamp: "2000-05-18 23:40:33 MDT"
 
 =head1 NAME
 
@@ -28,6 +29,10 @@ correponding HTML element and are all written in lower case. If the
 first argument is a hash reference then it will be used to initialize the
 attributes of this element. The remaining arguments are regarded as
 content.
+
+For a similar idea (i.e., it's another case where the syntax tree
+of the Perl source mirrors the syntax tree of the HTML produced),
+see HTML::Element's C<new_from_lol> method.
 
 =head1 ACKNOWLEDGEMENT
 
@@ -57,7 +62,6 @@ The exported link() function overrides the builtin link() function.
 The exported tr() function must be called using &tr(...) syntax
 because it clashes with the builtin tr/../../ operator.
 
-
 =head1 SEE ALSO
 
 L<HTML::Element>
@@ -71,7 +75,7 @@ require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = '1.13';
+$VERSION = '1.15';
 
 use vars qw(@TAGS);
 @TAGS = qw(html

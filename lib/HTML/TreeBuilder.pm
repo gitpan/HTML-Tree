@@ -1,5 +1,6 @@
 
-# Time-stamp: "2000-03-26 19:02:01 MST"
+require 5;
+# Time-stamp: "2000-05-18 23:41:36 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -157,7 +158,7 @@ When a document parses in a way different from how you think it
 should, I ask that you report this to me as a bug.  The first thing
 you should do is copy the document, trim out as much of it as you can
 while still producing the bug in question, and I<then> email me that
-mini-document at C<sburke@netadventure.net>, with a note as to how it
+mini-document at C<sburke@cpan.org>, with a note as to how it
 parses (presumably including its $tree->dump output), and then a
 I<careful and clear> explanation of where you think the parser is
 going astray, and how you would prefer that it work instead.
@@ -176,7 +177,7 @@ modify it under the same terms as Perl itself.
 =head1 AUTHOR
 
 Original author Gisle Aas E<lt>gisle@aas.noE<gt>; current maintainer
-Sean M. Burke, E<lt>sburke@netadventure.netE<gt>
+Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
 
 =cut
 
@@ -200,7 +201,7 @@ require HTML::Parser;
  # It's not that we ARE an element AND a parser.
  # We ARE an element, but one that knows how to handle signals
  #  (method calls) from Parser in order to elaborate its subtree.
-$VERSION = '2.96';
+$VERSION = '2.97';
 
 #==========================================================================
 # List of all elements from Extensible HTML version 1.0 Transitional DTD:

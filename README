@@ -1,4 +1,4 @@
-# Time-stamp: "1999-12-15 19:36:24 MST"
+# Time-stamp: "2000-05-18 23:58:03 MDT"
 
 HTML-Tree
 ---------
@@ -8,7 +8,7 @@ information from HTML syntax trees.  These modules used to be part of
 the libwww-perl distribution, but are now unbundled in order to
 facilitate a separate development track.  Bug reports and discussions
 about these modules can still be sent to the <libwww@perl.org> mailing
-list, or to <sburke@netadventure.net>.
+list, or to <sburke@cpan.org>.
 
 The modules present in this collection are:
 
@@ -50,7 +50,7 @@ Just follow the usual procedure:
 COPYRIGHT
 
   (c) 1995-1999  Gisle Aas.
-  (c) 1999  Sean M. Burke
+  (c) 1999, 2000  Sean M. Burke
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
