@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-08-21 00:52:26 MDT"
+# Time-stamp: "2000-08-26 15:55:26 MDT"
 package HTML::Element;
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
@@ -148,7 +148,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug);
 
-$VERSION = '3.02';
+$VERSION = '3.03';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -1172,7 +1172,7 @@ sub insert_element
         $e = $tag;
         $tag = $e->tag;
     } else { # just a tag name -- so make the element
-        $e = HTML::Element->new($tag)
+        $e = ($self->{'_element_class'} || __PACKAGE__)->new($tag)
     }
 
     $e->{'_implicit'} = 1 if $implicit;
@@ -1422,18 +1422,18 @@ sub as_text {
   my($this,%options) = @_;
   my $skip_dels = $options{'skip_dels'} || 0;
   #print "Skip dels: $skip_dels\n";
-  my(@todo) = ($this);
+  my(@pile) = ($this);
   my $tag;
   my $text = '';
-  while(@todo) {
-    if(!defined($todo[0])) { # undef!
+  while(@pile) {
+    if(!defined($pile[0])) { # undef!
       # no-op
-    } elsif(!ref($todo[0])) { # text bit!  save it!
-      $text .= shift @todo;
+    } elsif(!ref($pile[0])) { # text bit!  save it!
+      $text .= shift @pile;
     } else { # it's a ref -- traverse under it
-      unshift @todo, @{$this->{'_content'} || $nillio}
+      unshift @pile, @{$this->{'_content'} || $nillio}
         unless
-          ($tag = ($this = shift @todo)->{'_tag'}) eq 'style'
+          ($tag = ($this = shift @pile)->{'_tag'}) eq 'style'
           or $tag eq 'script'
           or ($skip_dels and $tag eq 'del');
     }
@@ -2124,14 +2124,14 @@ none.
 =cut
 
 sub find_by_tag_name {
-  my(@todo) = shift(@_); # start out the to-do stack for the traverser
+  my(@pile) = shift(@_); # start out the to-do stack for the traverser
   Carp::croak "find_by_tag_name can be called only as an object method"
-   unless ref $todo[0];
+   unless ref $pile[0];
   return() unless @_;
   my(@tags) = map lc($_), @_;
   my(@matching, $this, $this_tag);
-  while(@todo) {
-    $this_tag = ($this = shift @todo)->{'_tag'};
+  while(@pile) {
+    $this_tag = ($this = shift @pile)->{'_tag'};
     foreach my $t (@tags) {
       if($t eq $this_tag) {
         if(wantarray) {
@@ -2142,7 +2142,7 @@ sub find_by_tag_name {
         }
       }
     }
-    unshift @todo, grep ref($_), @{$this->{'_content'} || next};
+    unshift @pile, grep ref($_), @{$this->{'_content'} || next};
   }
   return @matching if wantarray;
   return;
@@ -2309,10 +2309,10 @@ sub look_down {
   }
   Carp::croak "No criteria?" unless @criteria;
 
-  my(@todo) = ($_[0]);
+  my(@pile) = ($_[0]);
   my(@matching, $val, $this);
  Node:
-  while(defined($this = shift @todo)) {
+  while(defined($this = shift @pile)) {
     # Yet another traverser implemented with merely iterative code.
     foreach my $c (@criteria) {
       if(ref($c) eq 'CODE') {
@@ -2335,7 +2335,7 @@ sub look_down {
     return $this unless wantarray;
     push @matching, $this;
   } continue {
-    unshift @todo, grep ref($_), @{$this->{'_content'} || $nillio};
+    unshift @pile, grep ref($_), @{$this->{'_content'} || $nillio};
   }
   return @matching if wantarray;
   return;
@@ -2833,14 +2833,14 @@ on the tree.
 =cut
 
 sub has_insane_linkage {
-  my @todo = ($_[0]);
+  my @pile = ($_[0]);
   my($c, $i, $p, $this); # scratch
   
   # Another iterative traverser; this time much simpler because
   #  only in pre-order:
   my %parent_of = ($_[0], 'TOP-OF-SCAN');
-  while(@todo) {
-    $this = shift @todo;
+  while(@pile) {
+    $this = shift @pile;
     $c = $this->{'_content'} || next;
     return($this, "_content attribute is true but nonref.")
      unless ref($c) eq 'ARRAY';
@@ -2868,11 +2868,52 @@ sub has_insane_linkage {
          unless $p eq $this;
       }
     }
-    unshift @todo, grep ref($_), @$c;
-     # queue up more things on the todo stack
+    unshift @pile, grep ref($_), @$c;
+     # queue up more things on the pile stack
   }
   return; #okay
 }
+
+#==========================================================================
+
+sub _asserts_fail {  # to be run on trusted documents only
+  my(@pile) = ($_[0]);
+  my(@errors, $this, $id, $assert, $parent, $rv);
+  while(@pile) {
+    $this = shift @pile;
+    if(defined($assert = $this->{'assert'})) {
+      $id = ($this->{'id'} ||= $this->address); # don't use '0' as an ID, okay?
+      unless(ref($assert)) {
+        package main;
+        $assert = $this->{'assert'} = (
+          $assert =~ m/\bsub\b/ ? eval($assert) : eval("sub {  $assert\n}")
+        );
+        if($@) {
+          push @errors, [$this, "assertion at $id broke in eval: $@"];
+          $assert = $this->{'assert'} = sub {};
+        }
+      }
+      $parent = $this->{'_parent'};
+      $rv = undef;
+      eval {
+        $rv =
+         $assert->(
+           $this, $this->{'_tag'}, $this->{'_id'}, # 0,1,2
+           $parent ? ($parent, $parent->{'_tag'}, $parent->{'id'}) : () # 3,4,5
+         )
+      };
+      if($@) {
+        push @errors, [$this, "assertion at $id died: $@"];
+      } elsif(!$rv) {
+        push @errors, [$this, "assertion at $id failed"]
+      }
+       # else OK
+    }
+    push @pile, grep ref($_), @{$this->{'_content'} || next};
+  }
+  return @errors;
+}
+
 
 #==========================================================================
 1;

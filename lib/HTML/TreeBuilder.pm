@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-08-20 23:57:08 MDT"
+# Time-stamp: "2000-08-26 15:14:21 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -13,7 +13,7 @@ package HTML::TreeBuilder;
 use strict;
 use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $Debug);
-$VERSION = '3.02';
+$VERSION = '3.03';
 $Debug = 0 unless defined $Debug;
 
 use HTML::Entities ();
@@ -194,7 +194,8 @@ When a document parses in a way different from how you think it
 should, I ask that you report this to me as a bug.  The first thing
 you should do is copy the document, trim out as much of it as you can
 while still producing the bug in question, and I<then> email me that
-mini-document at C<sburke@cpan.org>, with a note as to how it
+mini-document I<and> the code you're using to parse it, at C<sburke@cpan.org>.
+Include a note as to how it 
 parses (presumably including its $tree->dump output), and then a
 I<careful and clear> explanation of where you think the parser is
 going astray, and how you would prefer that it work instead.
@@ -246,6 +247,7 @@ sub new { # constructor!
   $self->{'_tighten'} = 1;
     # whether ignorable WS in this tree should be deleted
 
+  $self->{'_element_class'}      = 'HTML::Element';
   $self->{'_ignore_unknown'}     = 1;
   $self->{'_ignore_text'}        = 0;
   $self->{'_warn'}               = 0;
@@ -285,6 +287,7 @@ sub _elem # universal accessor...
 
 # accessors....
 sub implicit_tags  { shift->_elem('_implicit_tags',  @_); }
+sub implicit_body_p_tag  { shift->_elem('_implicit_body_p_tag',  @_); }
 sub ignore_unknown { shift->_elem('_ignore_unknown', @_); }
 sub ignore_text    { shift->_elem('_ignore_text',    @_); }
 sub ignore_ignorable_whitespace  { shift->_elem('_tighten',    @_); }
@@ -335,9 +338,11 @@ sub start {
     
     #print $indent, "POS: $pos ($ptag)\n" if $Debug > 2;
     
-    my $e = HTML::Element->new($tag, %$attr); # in that class, not this class!
-    
-    
+    my $e =
+     ($self->{'_element_class'} || 'HTML::Element')->new($tag, %$attr);
+     # Make a new element object.
+     # (Only rarely do we end up just throwing it away later in this call.)
+     
     # Some prep -- custom messiness for those damned tables...
     if($self->{'_implicit_tags'} and !$HTML::TreeBuilder::isTableElement{$tag}) {
       if ($ptag eq 'table') {
@@ -374,7 +379,7 @@ sub start {
            if $Debug > 1;
         } else {
           # In neither head nor body!  mmmmm... put under head?
-
+          
           if ($ptag eq 'html') { # expected case
             # TODO?? : would there ever be a case where _head would be
             #  absent from a tree that would ever be accessed at this
@@ -402,9 +407,22 @@ sub start {
 
     #----------------------------------------------------------------------
     } elsif ($HTML::TreeBuilder::isBodyElement{$tag}) {
-
+        
         # Ensure that we are within <body>
-        if ($pos->is_inside('head')) {
+        if($ptag eq 'body') {
+            # We're good.
+        } elsif($HTML::TreeBuilder::isBodyElement{$ptag}
+          and not $HTML::TreeBuilder::isHeadOrBodyElement{$ptag}
+        ) {
+            # Special case: Save ourselves a call to is_inside further down.
+            # If our $ptag is an isBodyElement element (but not an
+            # isHeadOrBodyElement element), then we must be under body!
+            print $indent, " * Inferring that $ptag is under BODY.\n",
+             if $Debug > 3;
+            # I think this and the test for 'body' trap everything
+            # bodyworthy, except the case where the parent element is
+            # under an unknown element that's a descendant of body.
+        } elsif ($pos->is_inside('head')) {
             print $indent,
               " * body-element \U$tag\E minimizes HEAD, makes implicit BODY.\n"
              if $Debug > 1;
@@ -412,7 +430,7 @@ sub start {
               $pos = $self->{'_pos'} = $self->{'_body'} # yes, needs updating
                 || die "Where'd my body go?"
             )->{'_tag'}; # yes, needs updating
-        } elsif (!$pos->is_inside('body')) {
+        } elsif (! $pos->is_inside('body')) {
             print $indent,
               " * body-element \U$tag\E makes implicit BODY.\n"
              if $Debug > 1;
@@ -421,8 +439,9 @@ sub start {
                 || die "Where'd my body go?"
             )->{'_tag'}; # yes, needs updating
         }
-         # else OK.
-
+         # else we ARE under body, so okay.
+        
+        
         # Handle implicit endings and insert based on <tag> and position
         # ... ALL HOPE ABANDON ALL YE WHO ENTER HERE ...
         if ($tag eq 'p'  or
@@ -447,12 +466,25 @@ sub start {
             }
         } elsif ($tag eq 'li') { # list item
             # Get under a list tag, one way or another
-            $self->end(\'*', keys %HTML::TreeBuilder::isList)
-             || $self->insert_element('ul', 1); #'
+            unless(
+              exists $HTML::TreeBuilder::isList{$ptag} or
+              $self->end(\'*', keys %HTML::TreeBuilder::isList) #'
+            ) { 
+              print $indent,
+                " * inserting implicit UL for lack of containing ",
+                  join('|', keys %HTML::TreeBuilder::isList), ".\n"
+               if $Debug > 1;
+              $self->insert_element('ul', 1); 
+            }
             
-        } elsif ($tag eq 'dt' || $tag eq 'dd') {
+        } elsif ($tag eq 'dt' or $tag eq 'dd') {
             # Get under a DL, one way or another
-            $self->end(\'*', 'dl') || $self->insert_element('dl', 1); #'
+            unless($ptag eq 'dl' or $self->end(\'*', 'dl')) { #'
+              print $indent,
+                " * inserting implicit DL for lack of containing DL.\n"
+               if $Debug > 1;
+              $self->insert_element('dl', 1);
+            }
             
         } elsif ($HTML::TreeBuilder::isFormElement{$tag}) {
             if($self->{'_ignore_formies_outside_form'}  # TODO: document this
@@ -496,7 +528,7 @@ sub start {
                  # is $pos's value used after this?
             }
         } elsif ($HTML::TreeBuilder::isPhraseMarkup{$tag}) {
-            if ($self->{'_implicit_body_p_tag'} and $ptag eq 'body') {
+            if($ptag eq 'body' and $self->{'_implicit_body_p_tag'}) {
                 print
                   " * Phrasal \U$tag\E right under BODY makes an implicit P\n"
                  if $Debug > 1;
@@ -782,7 +814,6 @@ sub end {
     if($tag eq '*') {
       # Special -- close everything up to (but not including) the first
       #  limiting tag, or return if none found.  Somewhat of a special case.
-
      PARENT:
       while (defined $p) {
         $ptag = $p->{'_tag'};
@@ -799,10 +830,18 @@ sub end {
         print
           $indent, 
           " (Moving on up to ", $p ? $p->{'_tag'} : 'nil', ")\n"
-         if $Debug > 1
+         if $Debug > 1;
         ;
       }
-      return unless defined $p; # We never found what we were looking for.
+      unless(defined $p) { # We never found what we were looking for.
+        print $indent, " (We never found a limit.)\n" if $Debug > 1;
+        return;
+      }
+      #print
+      #   $indent,
+      #   " (To close: ", join('/', map $_->tag, @to_close), ".)\n"
+      #  if $Debug > 4;
+      
       # Otherwise update pos and fall thru.
       $self->{'_pos'} = $p;
     } elsif (ref $tag) {
@@ -1051,7 +1090,10 @@ sub comment {
       join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
       ".\n";
   }
-  (my $e = HTML::Element->new('~comment'))->{'text'} = $text;
+
+  (my $e = (
+    $self->{'_element_class'} || 'HTML::Element'
+   )->new('~comment'))->{'text'} = $text;
   $pos->push_content($e);
 
   &{  $self->{'_tweak_~comment'}
@@ -1089,7 +1131,9 @@ sub declaration {
       join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
       ".\n";
   }
-  (my $e = HTML::Element->new('~declaration'))->{'text'} = $text;
+  (my $e = (
+    $self->{'_element_class'} || 'HTML::Element'
+   )->new('~declaration'))->{'text'} = $text;
   $pos->push_content($e);
 
   &{  $self->{'_tweak_~declaration'}
@@ -1123,7 +1167,9 @@ sub process {
       join('/', reverse($pos->{'_tag'}, @lineage_tags)) || 'Root',
       ".\n";
   }
-  (my $e = HTML::Element->new('~pi'))->{'text'} = $text;
+  (my $e = (
+    $self->{'_element_class'} || 'HTML::Element'
+   )->new('~pi'))->{'text'} = $text;
   $pos->push_content($e);
 
   &{  $self->{'_tweak_~pi'}

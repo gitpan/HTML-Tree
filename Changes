@@ -1,4 +1,22 @@
-# Time-stamp: "2000-08-21 13:57:22 MDT"
+# Time-stamp: "2000-08-26 15:55:48 MDT"
+
+2000-08-26   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.03
+
+   Introduced an optimization in TreeBuilder's logic for checking that
+   body-worthy elements are actually inserted under body.  Should
+   speed things up a bit -- it saves two method calls per typical
+   start-tag.  Hopefully no change in behavior.
+
+   Whoops -- 3.01's change in the return values of TreeBuilder's
+   (internal) end(...) method ended up breaking the processing of list
+   elements.  Fixed.  Thanks to Claus Schotten for spotting this.
+
+   Whoops 2 -- Margarit A. Nickolov spotted that TreeBuilder
+   documented a implicit_body_p_tag method, but the module didn't
+   define it.  I must have deleted it some time or other.  Restored.
+
 
 2000-08-20   Sean M. Burke <sburke@cpan.org>
 
