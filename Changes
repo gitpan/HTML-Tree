@@ -1,4 +1,22 @@
-# Time-stamp: "2000-10-02 15:10:24 MDT"
+# Time-stamp: "2000-10-15 22:10:57 MDT"
+
+2000-10-15   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.06
+   
+   In Element: methods added:  $x->id, $x->idf, $x->as_XML,
+   $x->as_Lisp_form
+
+   In Element: internal optimization: as_HTML no longer uses the
+   tag() accessor.  Should cause no change in behavior.
+
+   In Element: as_HTML (via starttag) no longer tries to dump
+   attributes whose values are references, or whose names
+   are null-string or "/".  This should cause no change in
+   behavior, as there's no normal way for any document to parse
+   to a tree containing any such attributes.
+
+   In Element: minor typos or rewordings in the POD.
 
 2000-10-02   Sean M. Burke <sburke@cpan.org>
 
@@ -16,14 +34,14 @@
 
    In Element: added new method $h->tagname_map
 
-   In TreeBuilder: Some minor changes in the logic of handling TD and
-   TR elements -- basically bug fixes, in response to an astute bug
-   report from Toby Thurston <toby@wildfire.dircon.co.uk>.
+   In TreeBuilder: Some minor corrections to the logic of handling TD
+   and TH elements -- basically bug fixes, in response to an astute
+   bug report from Toby Thurston <toby@wildfire.dircon.co.uk>.
 
    In TreeBuilder: Fixed lame bug that made strict-p mode nearly
    useless.  It may now approach usability!
 
-   This dist contains a sample utility called "htmltree" that parses
+   This dist contains a simple utility called "htmltree" that parses
    given HTML documents, and dumps their parse tree.  (It's not
    actually new in this version, but was never mentioned before.)
 

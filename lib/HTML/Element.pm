@@ -1,7 +1,8 @@
 
 require 5;
-# Time-stamp: "2000-09-29 19:57:31 MDT"
+# Time-stamp: "2000-10-15 22:13:39 MDT"
 package HTML::Element;
+# TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
@@ -32,8 +33,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 DESCRIPTION
 
 Objects of the HTML::Element class can be used to represent elements
-of HTML.  These objects have attributes, notably attributes that
-designates the elements's parent and content.  The content is an array
+of HTML document trees.  These objects have attributes, notably attributes that
+designates each element's parent and content.  The content is an array
 of text segments and other HTML::Element objects.  A tree with HTML::Element
 objects as nodes can represent the syntax tree for a HTML document.
 
@@ -146,9 +147,9 @@ use HTML::Entities ();
 use HTML::Tagset ();
 use integer; # vroom vroom!
 
-use vars qw($VERSION $html_uc $Debug);
+use vars qw($VERSION $html_uc $Debug $ID_COUNTER);
 
-$VERSION = '3.05';
+$VERSION = '3.06';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -636,6 +637,67 @@ sub all_external_attr_names {
       !(length($_) && substr($_,0,1) eq '_'),
       keys %{$_[0]}
   ;
+}
+
+
+
+=item $h->id() or $h->id($string)
+
+Returns (optionally sets to C<$string>) the "id" attribute.
+C<$h-E<gt>id(undef)> deletes the "id" attribute.
+
+=cut
+
+sub id {
+  if(@_ == 1) {
+    return $_[0]{'id'};
+  } elsif(@_ == 2) {
+    if(defined $_[1]) {
+      return $_[0]{'id'} = $_[1];
+    } else {
+      return delete $_[0]{'id'};
+    }
+  } else {
+    Carp::croak '$node->id can\'t take ' . scalar(@_) . ' parameters!';
+  }
+}
+
+
+=item $h->idf() or $h->idf($string)
+
+Just like the C<id> method, except that if you call C<$h->idf()> and
+no "id" attribute is defined for this element, then it's set to a
+likely-to-be-unique value, and returned.  (The "f" is for "force".)
+
+=cut
+
+sub _gensym {
+  unless(defined $ID_COUNTER) {
+    # start it out...
+    $ID_COUNTER = sprintf('%04x', rand(0x1000));
+    $ID_COUNTER =~ tr<0-9a-f><J-NP-Z>; # yes, skip letter "oh"
+    $ID_COUNTER .= '00000';
+  }
+  ++$ID_COUNTER;
+}
+
+sub idf {
+  if(@_ == 1) {
+    my $x;
+    if(defined($x = $_[0]{'id'}) and length $x) {
+      return $x;
+    } else {
+      return $_[0]{'id'} = _gensym();
+    }
+  } elsif(@_ == 2) {
+    if(defined $_[1]) {
+      return $_[0]{'id'} = $_[1];
+    } else {
+      return delete $_[0]{'id'};
+    }
+  } else {
+    Carp::croak '$node->idf can\'t take ' . scalar(@_) . ' parameters!';
+  }
 }
 
 #==========================================================================
@@ -1330,7 +1392,7 @@ sub dump
 =item or $h->as_HTML($entities, $indent_char, \%optional_end_tags)
 
 Returns a string representing in HTML the element and its
-children.  The optional argument C<$entities> specifies a string of
+descendants.  The optional argument C<$entities> specifies a string of
 the entities to encode.  For compatibility with previous versions,
 specify C<'E<lt>E<gt>&'> here.  If omitted or undef, I<all> unsafe
 characters are encoded as HTML entities.  See L<HTML::Entities> for
@@ -1375,7 +1437,7 @@ sub as_HTML
         ($node, $start, $depth) = @_;
         if(ref $node) { # it's an element
            
-           $tag = $node->tag;
+           $tag = $node->{'_tag'};
            
            if($start) { # on the way in
              if(
@@ -1463,9 +1525,9 @@ sub as_HTML
   } else { # no indenting -- much simpler code
     $self->traverse(
       sub {
-          ($node, $start, $depth) = @_;
+          ($node, $start) = @_;
           if(ref $node) {
-            $tag = $node->tag;
+            $tag = $node->{'_tag'};
             if($start) { # on the way in
               push(@html, $node->starttag($entities));
             } elsif (not($HTML::Element::emptyElement{$tag} or $omissible_map->{$tag})) {
@@ -1490,7 +1552,6 @@ sub as_HTML
   
   join('', @html, "\n");
 }
-
 
 
 =item $h->as_text()
@@ -1530,6 +1591,160 @@ sub as_text {
   return $text;
 }
 
+
+=item $h->as_XML() or $h->as_XML($entities)
+
+Returns a string representing in XML the element and its descendants.
+The optional argument C<$entities> specifies a string of the entities
+to encode.  If omitted or undef, I<all> unsafe characters are encoded
+as HTML (!) entities.  See L<HTML::Entities> for details.
+
+This method is experimental.  If you use this method, tell me what you
+use it for, and if you run into any problems.
+
+The XML is not indented.
+
+=cut
+
+# TODO: make it wrap, if not indent?
+
+sub as_XML
+{
+  # based an as_HTML
+  my($self, $entities) = @_;
+  #my $indent_on = defined($indent) && length($indent);
+  my @xml = ();
+  
+  my($tag, $node, $start); # per-iteration scratch
+  $self->traverse(
+    sub {
+        ($node, $start) = @_;
+        if(ref $node) { # it's an element
+          $tag = $node->{'_tag'};
+          if($start) { # on the way in
+            if($HTML::Element::emptyElement{$tag}
+               and !@{$node->{'_content'} || $nillio}
+            ) {
+              push(@xml, $node->starttag_XML($entities,1));
+            } else {
+              push(@xml, $node->starttag_XML($entities));
+            }
+          } else { # on the way out
+            unless($HTML::Element::emptyElement{$tag}
+                   and !@{$node->{'_content'} || $nillio}
+            ) {
+              push(@xml, $node->endtag_XML());
+            } # otherwise it will have been an <... /> tag.
+          }
+        } else { # it's just text
+          HTML::Entities::encode_entities($node, $entities);
+          push(@xml, $node);
+        }
+       1; # keep traversing
+      }
+  );
+  
+  join('', @xml, "\n");
+}
+
+
+=item $h->as_Lisp_form()
+
+Returns a string representing the element and its descendants as a
+Lisp form.  Unsafe characters are encoded as octal escapes.
+
+The Lisp form is indented, and contains external ("href", etc.)  as
+well as internal attributes ("_tag", "_content", "_implicit", etc.),
+except for "_parent", which is omitted.
+
+Current example output for a given element:
+
+  ("_tag" "img" "border" "0" "src" "pie.png" "usemap" "#main.map")
+
+This method is experimental.  If you use this method, tell me what you
+use it for, and if you run into any problems.
+
+=cut
+
+# NOTES:
+#
+# It's been suggested that attribute names be made :-keywords:
+#   (:_tag "img" :border 0 :src "pie.png" :usemap "#main.map")
+# However, it seems that Scheme has no such data type as :-keywords.
+# So, for the moment at least, I tend toward simplicity, uniformity,
+#  and universality, where everything a string or a list.
+
+sub as_Lisp_form {
+  my @out;
+  
+  my $sub;
+  my $depth = 0;
+  my(@list, $val);
+  $sub = sub {  # Recursor
+    my $self = $_[0];
+    @list = ('_tag', $self->{'_tag'});
+    @list = () unless defined $list[-1]; # unlikely
+    
+    for (sort keys %$self) { # predictable ordering
+      next if $_ eq '_content' or $_ eq '_tag' or $_ eq '_parent' or $_ eq '/';
+       # Leave the other private attributes, I guess.
+      push @list, $_, $val if defined($val = $self->{$_}) and !ref $val;
+    }
+    
+    for (@list) {
+      #if(!length $_) {
+      #  $_ = '""';
+      #} elsif(
+      #  $_ eq '0'
+      #  or (
+      #     m/^-?\d+(\.\d+)?$/s
+      #     and $_ ne '-0' # the strange case that that RE lets thru
+      #  ) or (
+      #     m/^-?\.\d+$/s
+      #  )
+      #) {
+      #  # No-op -- don't bother quoting numbers.
+      #  # Note: DOES accept strings like "0123" and ".123" as numbers!
+      #  #  
+      #} else {
+        # octal-escape it
+        s<([^\x20\x21\x23\x27-\x5B\x5D-\x7E])>
+         <sprintf('\\%03o',ord($1))>eg;
+        $_ = qq{"$_"};
+      #}
+    }
+    
+    push @out, ('  ' x $depth) . '(' . join ' ', splice @list;
+    if(@{$self->{'_content'} || $nillio}) {
+      $out[-1] .= " \"_content\" (\n";
+      ++$depth;
+      foreach my $c (@{$self->{'_content'}}) {
+        if(ref($c)) {
+          # an element -- recurse
+          $sub->($c);
+        } else {
+          # a text segment -- stick it in and octal-escape it
+          push @out, $c;
+          $out[-1] =~
+            s<([^\x20\x21\x23\x27-\x5B\x5D-\x7E])>
+             <sprintf('\\%03o',ord($1))>eg;
+          # And quote and indent it.
+          $out[-1] .= "\"\n";
+          $out[-1] = ('  ' x $depth) . '"' . $out[-1];
+        }
+      }
+      --$depth;
+      substr($out[-1],-1) = "))\n"; # end of _content and of the element
+    } else {
+      $out[-1] .= ")\n";
+    }
+    return;
+  };
+  
+  $sub->($_[0]);
+  undef $sub;
+  return join '', @out;
+}
 
 
 sub format
@@ -1586,10 +1801,9 @@ sub starttag
     my $tag = $html_uc ? "<\U$name" : "<\L$name";
     my $val;
     for (sort keys %$self) { # predictable ordering
-        next if m/^_/s;
+        next if !length $_ or m/^_/s or $_ eq '/';
         $val = $self->{$_};
-        # Hm -- what to do if val is undef?
-        # I suppose that shouldn't ever happen.
+        next if !defined $val or ref $val;
         if ($_ eq $val &&   # if attribute is boolean, for this element
             exists($HTML::Element::boolean_attr{$name}) &&
             (ref($HTML::Element::boolean_attr{$name})
@@ -1610,6 +1824,46 @@ sub starttag
 }
 
 
+# TODO: document?
+sub starttag_XML
+{
+    my($self, $entities) = @_;
+     # and a third parameter to signal emptiness
+    
+    my $name = $self->{'_tag'};
+    
+    return        $self->{'text'}        if $name eq '~literal';
+    
+    return '<!' . $self->{'text'}. '>'   if $name eq '~declaration';
+    
+    return "<?" . $self->{'text'} . "?>" if $name eq '~pi';
+    
+    if($name eq '~comment') {
+      
+      if(ref($self->{'text'} || '') eq 'ARRAY') {
+        # Does this ever get used?  And is this right?
+        $name = join(' ', @{$self->{'text'}});
+      } else {
+        $name = $self->{'text'};
+      }
+      $name =~ s/--/-&#45;/g; # can't have double --'s in XML comments
+      return "<!-- $name -->";
+    }
+    
+    my $tag = "<$name";
+    my $val;
+    for (sort keys %$self) { # predictable ordering
+        next if !length $_ or  m/^_/s or $_ eq '/';
+        # Hm -- what to do if val is undef?
+        # I suppose that shouldn't ever happen.
+        next if !defined($val = $self->{$_}) or ref $val;
+        HTML::Entities::encode_entities($val, $entities);
+        $tag .= qq{ $_="$val"};
+    }
+    @_ == 3 ? "$tag />" : "$tag>";
+}
+
+
 
 =item $h->endtag()
 
@@ -1621,6 +1875,12 @@ I.e., "</", tag name, and ">".
 sub endtag
 {
     $html_uc ? "</\U$_[0]->{'_tag'}>" : "</\L$_[0]->{'_tag'}>";
+}
+
+# TODO: document?
+sub endtag_XML
+{
+    "</$_[0]->{'_tag'}>";
 }
 
 
@@ -2715,7 +2975,7 @@ sub extract_links
                 push(@links, [$val, $self])
               }
             }
-	  }
+          }
           1; # return true, so we keep recursing
         },
         undef
