@@ -1,7 +1,7 @@
 
-require 5; # -*-Text-*- Time-stamp: "2001-03-14 20:11:56 MST"
+require 5; # -*-Text-*- Time-stamp: "2002-07-30 01:06:41 MDT"
 package HTML::Tree;
-$VERSION = $VERSION = 3.11;
+$VERSION = $VERSION = 3.12;
   # This is where the dist gets its version from.
 
 # Basically just a happy alias to HTML::TreeBuilder
@@ -85,9 +85,18 @@ L<HTML::Parser>
 
 L<HTML::DOMbo>
 
+The book I<Perl & LWP> by me, Sean M. Burke, published by
+O'Reilly and Associates, 2002.  ISBN: 0-596-00178-9
+
+It has several chapters to do with HTML processing in general,
+and HTML-Tree specifically.  There's more info at:
+
+  http://www.oreilly.com/catalog/perllwp/
+  http://www.amazon.com/exec/obidos/ASIN/0596001789
+
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas; copyright 1999-2002 Sean M. Burke.
 (Except the articles contained in HTML::Tree::AboutObjects,
 HTML::Tree::AboutTrees, and HTML::Tree::Scanning, which are all
 copyright 2000 The Perl Journal.)

@@ -1,14 +1,29 @@
 require 5.004;
 use ExtUtils::MakeMaker;
-# Time-stamp: "2001-01-20 12:43:06 MST"
+# Time-stamp: "2002-07-30 01:11:24 MDT"
 
 WriteMakefile(
     'NAME'	   => 'HTML-Tree',
-    'VERSION'      => '3.08',
+    # 'VERSION'      => '3.08',
     'VERSION_FROM' => 'lib/HTML/Tree.pm', # finds $VERSION
     'PREREQ_PM'    => {	
 	                 'HTML::Parser' => 2.19,   # at LEAST!
 	                 'HTML::Tagset' => 3.02,
 		      },
-    dist           => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    'AUTHOR' => 'Sean M. Burke (sburke@cpan.org)',
+    'ABSTRACT' => 'build and scan parse-trees of HTML',
+
+    'dist'           => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 );
+
+
+package MY;
+
+sub libscan
+{ # Determine things that should *not* be installed
+    my($self, $path) = @_;
+    return '' if $path =~ m/~/;
+    $path;
+}
+
+__END__

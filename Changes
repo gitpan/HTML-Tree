@@ -1,4 +1,40 @@
-# Time-stamp: "2001-03-14 20:11:31 MST"
+# Time-stamp: "2002-07-30 01:09:33 MDT"
+
+
+2002-07-30   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.12
+
+   Added as_trimmed_text method to HTML::Element, as described
+   (prophesied?) in the fantabulous new book /Perl & LWP/.
+
+   Bugfix: fixed unshift_content when given a LoL.  (_parent wasn't
+   getting set right.)
+
+   HTML::Element and HTML::TreeBuilder now enforce at least some
+   minimal sanity on what can be in a tag name.  (Notably, no spaces,
+   slashes, or control characters.)
+
+   Semi-bugfix: $element->replace_with(...) can now take LoLs in its
+   replacement list.
+
+   Bumped HTML::Element version up to 3.12 (right from 3.09)
+
+   Semi-bugfix: as_XML now doesn't use named entities in its return
+   value -- it always uses numeric entities.
+
+   Added behavior: new_frow_lol can now do clever things in list
+   context.
+
+   HTML::Tree -- added blurb for /Perl & LWP/
+
+   HTML::TreeBuilder -- added blurb for /Perl & LWP/
+   Also added a few tweaks to do better with XHTML parsing.
+   Added guts() and disembowel() methods, for parsing document fragments.
+
+
+   TODO: desperately need to add tests to t/
+
 
 2001-03-14   Sean M. Burke <sburke@cpan.org>
 

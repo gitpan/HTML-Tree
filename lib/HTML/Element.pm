@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2001-03-10 22:42:16 MST"
+# Time-stamp: "2002-07-30 01:07:25 MDT"
 package HTML::Element;
 # TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
@@ -154,7 +154,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.09';
+$VERSION = '3.12';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -235,6 +235,8 @@ sub new
 
     my $tag   = shift;
     Carp::croak("No tagname") unless defined $tag and length $tag;
+    Carp::croak "\"$tag\" isn't a good tag name!"
+     if $tag =~ m/[<>\/\x00-\x20]/; # minimal sanity, certainly!
     my $self  = bless { _tag => scalar($class->_fold_case($tag)) }, $class;
     my($attr, $val);
     while (($attr, $val) = splice(@_, 0, 2)) {
@@ -396,7 +398,7 @@ sub tag
 
 =item $h->parent() or $h->parent($new_parent)
 
-Returns (optionally sets) the parent for this element.
+Returns (optionally sets) the parent (aka "container") for this element.
 The parent should either be undef, or should be another element.
 
 You B<should not> use this to directly set the parent of an element.
@@ -423,7 +425,7 @@ sub parent
 
 =item $h->content_list()
 
-Returns a list representing the content of this element -- i.e., what
+Returns a list of the child nodes of this element -- i.e., what
 nodes (elements or text segments) are inside/under this element. (Note
 that this may be an empty list.)
 
@@ -670,7 +672,7 @@ sub id {
 
 =item $h->idf() or $h->idf($string)
 
-Just like the C<id> method, except that if you call C<$h->idf()> and
+Just like the C<id> method, except that if you call C<$h-E<gt>idf()> and
 no "id" attribute is defined for this element, then it's set to a
 likely-to-be-unique value, and returned.  (The "f" is for "force".)
 
@@ -830,7 +832,7 @@ sub unshift_content
         if (ref($_) eq 'ARRAY') {
             # magically call new_from_lol
             unshift @$content, $self->new_from_lol($_);
-	    $content->[-1]->{'_parent'} = $self;
+	    $content->[0]->{'_parent'} = $self;
         } elsif (ref $_) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
@@ -969,6 +971,8 @@ sub replace_with {
        if $replacers_contains_self++;
     } elsif($_ eq $parent) {
       Carp::croak "Can't replace an item with its parent!";
+    } elsif(ref($_) eq 'ARRAY') {
+      $_ = $self->new_from_lol($_);
     } else {
       $_->detach;
       $_->{'_parent'} = $parent;
@@ -1100,6 +1104,7 @@ I<not> in use.  So, to destroy those elements, you need to call
 $h->delete on the parent.
 
 =cut
+
 #'
 
 sub delete
@@ -1634,6 +1639,11 @@ Text under 'script' or 'style' elements is never included in what's
 returned.  If C<skip_dels> is true, then text content under "del"
 nodes is not included in what's returned.
 
+=item $h->as_trimmed_text(...)
+
+This is just like as_text(...) except that leading and trailing
+whitespace is deleted, and any internal whitespace is collapsed.
+
 =cut
 
 sub as_text {
@@ -1660,13 +1670,22 @@ sub as_text {
   return $text;
 }
 
+sub as_trimmed_text {
+  my $text = shift->as_text(@_);
+  $text =~ s/\s+$//s;
+  $text =~ s/^\s+//s;
+  $text =~ s/\s+/ /g;
+  return $text;
+}
+ 
+sub as_text_trimmed { shift->as_trimmed_text(@_) } # alias, because I forget
 
-=item $h->as_XML() or $h->as_XML($entities)
+=item $h->as_XML()
 
 Returns a string representing in XML the element and its descendants.
 The optional argument C<$entities> specifies a string of the entities
 to encode.  If omitted or undef, I<all> unsafe characters are encoded
-as HTML (!) entities.  See L<HTML::Entities> for details.
+as numeric XML entities.
 
 This method is experimental.  If you use this method, tell me what you
 use it for, and if you run into any problems.
@@ -1679,7 +1698,7 @@ The XML is not indented.
 
 sub as_XML {
   # based an as_HTML
-  my($self, $entities) = @_;
+  my($self) = @_;
   #my $indent_on = defined($indent) && length($indent);
   my @xml = ();
   my $empty_element_map = $self->_empty_element_map;
@@ -1694,9 +1713,9 @@ sub as_XML {
             if($empty_element_map->{$tag}
                and !@{$node->{'_content'} || $nillio}
             ) {
-              push(@xml, $node->starttag_XML($entities,1));
+              push(@xml, $node->starttag_XML(undef,1));
             } else {
-              push(@xml, $node->starttag_XML($entities));
+              push(@xml, $node->starttag_XML(undef));
             }
           } else { # on the way out
             unless($empty_element_map->{$tag}
@@ -1706,7 +1725,7 @@ sub as_XML {
             } # otherwise it will have been an <... /> tag.
           }
         } else { # it's just text
-          HTML::Entities::encode_entities($node, $entities);
+          _xml_escape($node);
           push(@xml, $node);
         }
        1; # keep traversing
@@ -1716,6 +1735,14 @@ sub as_XML {
   join('', @xml, "\n");
 }
 
+
+sub _xml_escape {  # DESTRUCTIVE (a.k.a. "in-place")
+  foreach my $x (@_) {
+    $x =~ s<([^\x20\x21\x23\x27-\x3b\x3d\x3F-\x5B\x5D-\x7E])>
+           <'&#'.(ord($1)).';'>seg;
+  }
+  return;
+}
 
 =item $h->as_Lisp_form()
 
@@ -1896,8 +1923,8 @@ sub starttag
 # TODO: document?
 sub starttag_XML
 {
-    my($self, $entities) = @_;
-     # and a third parameter to signal emptiness
+    my($self) = @_;
+     # and a third parameter to signal emptiness?
     
     my $name = $self->{'_tag'};
     
@@ -1926,7 +1953,7 @@ sub starttag_XML
         # Hm -- what to do if val is undef?
         # I suppose that shouldn't ever happen.
         next if !defined($val = $self->{$_}); # or ref $val;
-        HTML::Entities::encode_entities($val, $entities);
+        _xml_escape($val);
         $tag .= qq{ $_="$val"};
     }
     @_ == 3 ? "$tag />" : "$tag>";
@@ -2298,7 +2325,7 @@ of $h.  If $h is the rightmost (or only) child of its parent (or has
 no parent), then this returns undef.
 
 In list context: returns all the nodes that're the right siblings of
-$h, strting with the leftmost.  If $h is the rightmost (or only) child
+$h, starting with the leftmost.  If $h is the rightmost (or only) child
 of its parent (or has no parent), then this returns empty-list.
 
 (See also $h->postinsert(LIST).)
@@ -3249,19 +3276,24 @@ You can even do fancy things with C<map>:
     ],
   );
 
+=item @elements = HTML::Element->new_from_lol(ARRAYREFS)
+
+Constructs I<several> elements, by calling
+new_from_lol for every arrayref in the ARRAYREFS list.
+
+  @elements = HTML::Element->new_from_lol(
+    ['hr'],
+    ['p', 'And there, on the door, was a hook!'],
+  );
+   # constructs two elements.
+
 =cut
 
 sub new_from_lol {
-  my $class = ref($_[0]) || $_[0];
+  my $class = shift;
+  $class = ref($class) || $class;
    # calling as an object method is just the same as ref($h)->new_from_lol(...)
   my $lol = $_[1];
-
-  Carp::croak "first argument to new_from_lol mustn't be undef!"
-    unless defined $lol;
-  
-  Carp::croak
-   "first argument to new_from_lol must be an arrayref, not \"$lol\"!"
-    unless ref($lol) eq 'ARRAY';
 
   my @ancestor_lols;
    # So we can make sure there's no cyclicities in this lol.
@@ -3285,6 +3317,8 @@ sub new_from_lol {
       } elsif(! ref($lol->[$i])) {
         if($i == 0) { # name
           $tag_name = $lol->[$i];
+          Carp::croak "\"$tag_name\" isn't a good tag name!"
+           if $tag_name =~ m/[<>\/\x00-\x20]/; # minimal sanity, certainly!
         } else { # text segment child
           push @children, $lol->[$i];
         }
@@ -3292,7 +3326,8 @@ sub new_from_lol {
         keys %{$lol->[$i]}; # reset the each-counter, just in case
         while(($k,$v) = each %{$lol->[$i]}) {
           push @attributes, $class->_fold_case($k), $v
-            unless $k eq '_name' or $k eq '_content' or $k eq '_parent';
+            if defined $v and $k ne '_name' and $k ne '_content' and
+            $k ne '_parent';
           # enforce /some/ sanity!
         }
       } elsif(UNIVERSAL::isa($lol->[$i], __PACKAGE__)) {
@@ -3334,10 +3369,26 @@ sub new_from_lol {
 
     return $node;
   };
+  # End of sub definition.
 
-  $node = $sub->($lol);
-  undef $sub; # so it won't be in its own frame, so its refcount can hit 0
-  return $node;
+
+  if(wantarray) {
+    my(@nodes) = map {; (ref($_) eq 'ARRAY') ? $sub->($_) : $_ } @_;
+      # Let text bits pass thru, I guess.  This makes this act more like
+      #  unshift_content et al.  Undocumented.
+    undef $sub;
+      # so it won't be in its own frame, so its refcount can hit 0
+    return @nodes;
+  } else {
+    Carp::croak "new_from_lol in scalar context needs exactly one lol"
+     unless @_ == 1;
+    return $_[0] unless ref($_[0]) eq 'ARRAY';
+     # used to be a fatal error.  still undocumented tho.
+    $node = $sub->($_[0]);
+    undef $sub;
+      # so it won't be in its own frame, so its refcount can hit 0
+    return $node;
+  }
 }
 
 #--------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2001-03-14 20:11:48 MST"
+# Time-stamp: "2002-07-30 01:05:06 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -11,8 +11,9 @@ package HTML::TreeBuilder;
 
 use strict;
 use integer; # vroom vroom!
+use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.11';
+$VERSION = '3.12';
 
 # TODO: thank whoever pointed out the TEXTAREA bug
 # TODO: make require Parser of at least version... 2.27?
@@ -84,9 +85,9 @@ use HTML::Parser ();
 
 sub new_from_file { # or from a FH
   my $class = shift;
-  require Carp, Carp::croak("new_from_file takes only one argument")
+  Carp::croak("new_from_file takes only one argument")
    unless @_ == 1;
-  require Carp, Carp::croak("new_from_file is a class method only")
+  Carp::croak("new_from_file is a class method only")
    if ref $class;
   my $new = $class->new();
   $new->parse_file($_[0]);
@@ -95,16 +96,37 @@ sub new_from_file { # or from a FH
 
 sub new_from_content { # from any number of scalars
   my $class = shift;
-  require Carp, Carp::croak("new_from_content is a class method only")
+  Carp::croak("new_from_content is a class method only")
    if ref $class;
   my $new = $class->new();
   foreach my $whunk (@_) {
-    $new->parse($whunk);
+    if(ref($whunk) eq 'SCALAR') {
+      $new->parse($$whunk);
+    } else {
+      $new->parse($whunk);
+    }
     last if $new->{'_stunted'}; # might as well check that.
   }
   $new->eof();
   return $new;
 }
+
+# TODO: document?
+sub parse_content {  # from any number of scalars
+  my $tree = shift;
+  my $retval;
+  foreach my $whunk (@_) {
+    if(ref($whunk) eq 'SCALAR') {
+      $retval = $tree->parse($$whunk);
+    } else {
+      $retval = $tree->parse($whunk);
+    }
+    last if $tree->{'_stunted'}; # might as well check that.
+  }
+  $tree->eof();
+  return $retval;
+}
+
 
 #---------------------------------------------------------------------------
 
@@ -221,6 +243,14 @@ sub warning {
       # inserted by some lame code-generators.
       return;    # bypass tweaking.
     }
+   
+    $tag =~ s{/$}{}s;  # So <b/> turns into <b>.  Silently forgive.
+    
+    unless($tag =~ m/^[-_a-zA-Z0-9:%]+$/s) {
+      DEBUG and print "Start-tag name $tag is no good.  Skipping.\n";
+      return;
+      # This avoids having Element's new() throw an exception.
+    }
 
     my $ptag = (
                 my $pos  = $self->{'_pos'} || $self
@@ -240,6 +270,15 @@ sub warning {
     }
     
     #print $indent, "POS: $pos ($ptag)\n" if DEBUG > 2;
+    # $attr = {%$attr};
+
+    foreach my $k (keys %$attr) {
+      # Make sure some stooge doesn't have "<span _content='pie'>".
+      # That happens every few million Web pages.
+      $attr->{' ' . $k} = delete $attr->{$k}
+       if length $k and substr($k,0,1) eq '_';
+      # Looks bad, but is fine for round-tripping.
+    }
     
     my $e =
      ($self->{'_element_class'} || 'HTML::Element')->new($tag, %$attr);
@@ -730,6 +769,12 @@ sub warning {
       print "Ignoring close-x-html tag.\n" if DEBUG;
       # inserted by some lame code-generators.
       return;
+    }
+
+    unless($tag =~ m/^[-_a-zA-Z0-9:%]+$/s) {
+      DEBUG and print "End-tag name $tag is no good.  Skipping.\n";
+      return;
+      # This avoids having Element's new() throw an exception.
     }
 
     # This method accepts two calling formats:
@@ -1229,6 +1274,9 @@ sub process {
 
 sub eof {
   # Accept an "end-of-file" signal from HTML::Parser, or thrown by the user.
+  
+  return if $_[0]->{'_done'}; # we've already been here
+  
   return $_[0]->SUPER::eof() if $_[0]->{'_stunted'};
   
   my $x = $_[0];
@@ -1265,7 +1313,8 @@ sub eof {
   $x->delete_ignorable_whitespace()
    # this's why we trap this -- an after-method
    if $x->{'_tighten'} and ! $x->{'_ignore_text'};
-
+  $x->{'_done'} = 1;
+  
   return @rv if wantarray;
   return $rv[0];
 }
@@ -1277,6 +1326,7 @@ sub eof {
 sub stunt {
   my $self = $_[0];
   print "Stunting the tree.\n" if DEBUG;
+  $self->{'_done'} = 1;
   
   if($HTML::Parser::VERSION < 3) {
     #This is a MEAN MEAN HACK.  And it works most of the time!
@@ -1306,6 +1356,7 @@ sub stunt {
 
 # TODO: document
 sub stunted  { shift->_elem('_stunted',  @_); }
+sub done     { shift->_elem('_done',     @_); }
 
 #==========================================================================
 
@@ -1342,6 +1393,10 @@ sub delete {
      if defined $_ and ref $_   #  Make sure it's an object.
         and $_ ne $_[0];   #  And avoid hitting myself, just in case!
   }
+
+  $_[0]->detach if $_[0]->{'_parent'} and $_[0]->{'_parent'}{'_content'};
+   # An 'html' element having a parent is quite unlikely.
+
   return undef;
 }
 
@@ -1363,6 +1418,44 @@ sub elementify {
   bless $self, $to_class;   # Returns the same object we were fed
 }
 
+#--------------------------------------------------------------------------
+
+sub guts {
+  my @out;
+  my @stack = ($_[0]);
+  my $destructive = $_[1];
+  my $this;
+  while(@stack) {
+    $this = shift @stack;
+    if(!ref $this) {
+      push @out, $this;  # yes, it can include text nodes
+    } elsif(! $this->{'_implicit'}) {
+      push @out, $this;
+      delete $this->{'_parent'} if $destructive;
+    } else {
+      # it's an implicit node.  Delete it and recurse
+      delete $this->{'_parent'} if $destructive;
+      unshift @stack, @{
+        (  $destructive ? 
+           delete($this->{'_content'})
+           :      $this->{'_content'}
+        )
+        || []
+      };
+    }
+  }
+  # Doesn't call a real $root->delete on the (when implicit) root,
+  #  but I don't think it needs to.
+  
+  return @out if wantarray;  # one simple normal case.
+  return undef unless @out;
+  return $out[0] if @out == 1 and ref($out[0]);
+  my $x = HTML::Element->new('div', '_implicit' => 1);
+  $x->push_content(@out);
+  return $x;
+}
+
+sub disembowel { $_[0]->guts(1) }
 
 #--------------------------------------------------------------------------
 1;
@@ -1427,7 +1520,7 @@ HTML::Element documentation, and also skim the HTML::Parser
 documentation -- probably only its parse and parse_file methods are of
 interest.
 
-The following methods native to HTML::TreeBuilder all control how
+Most of the following methods native to HTML::TreeBuilder control how
 parsing takes place; they should be set I<before> you try parsing into
 the given object.  You can set the attributes by passing a TRUE or
 FALSE value as argument.  E.g., $root->implicit_tags returns the current
@@ -1496,7 +1589,8 @@ HTML::TreeBuilder to the class used for all the rest of the elements
 in that tree (generally HTML::Element).  Returns $root.
 
 For most purposes, this is unnecessary, but if you call this after
-you're finished building a tree, then it keeps you from accidentally
+(after!!)
+you've finished building a tree, then it keeps you from accidentally
 trying to call anything but HTML::Element methods on it.  (I.e., if
 you accidentally call C<$root-E<gt>parse_file(...)> on the
 already-complete and elementified tree, then instead of charging ahead
@@ -1508,6 +1602,52 @@ Note that elementify currently deletes all the private attributes of
 $root except for "_tag", "_parent", "_content", "_pos", and
 "_implicit".  If anyone requests that I change this to leave in yet
 more private attributes, I might do so, in future versions.
+
+=item @nodes = $root->guts()
+
+=item $parent_for_nodes = $root->guts()
+
+In list context (as in the first case), this method returns the topmost
+non-implicit nodes in a tree.  This is useful when you're parsing HTML
+code that you know doesn't expect an HTML document, but instead just
+a fragment of an HTML document.  For example, if you wanted the parse
+tree for a file consisting of just this:
+
+  <li>I like pie!
+
+Then you would get that with C<< @nodes = $root->guts(); >>.
+It so happens that in this case, @notes will contain just one
+element object, representing the "li" node (with "I like pie!" being
+its text child node).  However, consider if you were parsing this:
+
+  <hr>Hooboy!<hr>
+
+In that case, C<< $root->guts() >> would return three items:
+an element object for the first "hr", a text string "Hooboy!", and
+another "hr" element object.
+
+For cases where you want definitely one element (so you can treat it as
+a "document fragment", roughly speaking), call C<guts()> in scalar
+context, as in C<< $parent_for_nodes = $root->guts() >>. That works like
+C<guts()> in list context; in fact, C<guts()> in list context would
+have returned exactly one value, and if it would have been an object (as
+opposed to a text string), then that's what C<guts> in scalar context
+will return.  Otherwise, if C<guts()> in list context would have returned
+no values at all, then C<guts()> in scalar context returns undef.  In
+all other cases, C<guts()> in scalar context returns an implicit 'div'
+element node, with children consisting of whatever nodes C<guts()>
+in list context would have returned.  Note that that may detach those
+nodes from C<$root>'s tree.
+
+=item @nodes = $root->disembowel()
+
+=item $parent_for_nodes = $root->disembowel()
+
+The C<disembowel()> method works just like the C<guts()> method, except
+that disembowel definitively destroys the tree above the nodes that
+are returned.  Usually when you want the guts from a tree, you're just
+going to toss out the rest of the tree anyway, so this saves you the
+bother.  (Remember, "disembowel" means "remove the guts from".)
 
 =item $root->implicit_tags(value)
 
@@ -1731,7 +1871,7 @@ L<HTML::DOMbo>
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas; copyright 1999-2002 Sean M. Burke.
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

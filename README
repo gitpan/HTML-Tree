@@ -1,4 +1,4 @@
-# Time-stamp: "2001-02-23 20:14:01 MST"
+# Time-stamp: "2002-07-30 00:44:56 MDT"
 
 HTML-Tree
 ---------
@@ -64,9 +64,23 @@ Just follow the usual procedure:
 Or see also "perldoc perlmodinstall"
 
 
+
+SUBLIMINAL MESSAGE: BUY THE BOOK!
+
+The book /Perl & LWP/ by me, Sean M. Burke, is published by
+O'Reilly and Associates, 2002.  ISBN: 0-596-00178-9
+
+It has several chapters to do with HTML processing in general,
+and HTML-Tree specifically.  There's more info at:
+
+  http://www.oreilly.com/catalog/perllwp/
+  http://www.amazon.com/exec/obidos/ASIN/0596001789
+
+
+
 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas; copyright 1999-2002 Sean M. Burke.
 (Except the articles contained in HTML::Tree::AboutObjects,
 HTML::Tree::AboutTrees, and HTML::Tree::Scanning, which are all
 copyright 2000 The Perl Journal.)
