@@ -3,8 +3,7 @@ MANIFEST
 MANIFEST.SKIP
 Makefile.PL
 README
-dtd2pm
-ent
+TODO
 htmltree
 lib/HTML/AsSubs.pm
 lib/HTML/Element.pm
@@ -15,6 +14,7 @@ lib/HTML/Tree/AboutObjects.pod
 lib/HTML/Tree/AboutTrees.pod
 lib/HTML/Tree/Scanning.pod
 lib/HTML/TreeBuilder.pm
+t/00system.t
 t/building.t
 t/clonei.t
 t/oldparse.t

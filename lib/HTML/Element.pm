@@ -1,16 +1,7 @@
 
 require 5;
-# Time-stamp: "2003-01-18 19:08:59 AHST"
+# Time-stamp: "2003-09-15 01:03:09 ADT"
 package HTML::Element;
-# TODO: make as_* understand ~text items
-# TODO: make extract_links do the right thing with forms with no action param ?
-# TODO: add 'are_element_identical' method ?
-# TODO: add 'are_content_identical' method ?
-# TODO: maybe alias ->destroy to ->delete, because I keep mixing them up ?
-# TODO: maybe reorganize the docs some time?
-
-# TODO: $node->rebless( what_class )
-#        and/or  $node->rebless_down( what_class ) # recurses
 
 =head1 NAME
 
@@ -1107,6 +1098,10 @@ $h->delete on the parent.
 
 #'
 
+# two handy aliases
+sub destroy { shift->delete(@_) }
+sub destroy_content { shift->delete_content(@_) }
+
 sub delete
 {
     my $self = $_[0];
@@ -1473,10 +1468,7 @@ details.
 
 If $indent_char is specified and defined, the HTML to be output is
 intented, using the string you specify (which you probably should
-set to "\t", or some number of spaces, if you specify it).  This
-feature is currently somewhat experimental.  But try it, and feel
-free to email me any bug reports.  (Note that output, although
-indented, is not wrapped.  Patches welcome.)
+set to "\t", or some number of spaces, if you specify it).
 
 If C<\%optional_end_tags> is specified and defined, it should be
 a reference to a hash that holds a true value for every tag name
@@ -1686,9 +1678,6 @@ sub as_text_trimmed { shift->as_trimmed_text(@_) } # alias, because I forget
 
 Returns a string representing in XML the element and its descendants.
 
-This method is experimental.  If you use this method, tell me what you
-use it for, and if you run into any problems.
-
 The XML is not indented.
 
 =cut
@@ -1755,9 +1744,6 @@ except for "_parent", which is omitted.
 Current example output for a given element:
 
   ("_tag" "img" "border" "0" "src" "pie.png" "usemap" "#main.map")
-
-This method is experimental.  If you use this method, tell me what you
-use it for, and if you run into any problems.
 
 =cut
 
@@ -2667,7 +2653,7 @@ In list context, returns all elements that match all the given
 criteria; in scalar context, returns the first such element (or undef,
 if nothing matched).
 
-There are two kinds of criteria you can specify:
+There are three kinds of criteria you can specify:
 
 =over
 
@@ -2676,6 +2662,11 @@ There are two kinds of criteria you can specify:
 This means you're looking for an element with that value for that
 attribute.  Example: C<"alt", "pix!">.  Consider that you can search
 on internal attribute values too: C<"_tag", "p">.
+
+=item (attr_name, qr/.../)
+
+This means you're looking for an element whose value for that
+attribute matches the specified Regexp object.
 
 =item a coderef
 
@@ -2691,7 +2682,8 @@ returns true.  Example:
 
 =back
 
-Note that C<(attr_name, attr_value)> criteria are faster than coderef
+Note that C<(attr_name, attr_value)> and C<(attr_name, qr/.../)>
+criteria are almost always faster than coderef
 criteria, so should presumably be put before them in your list of
 criteria.  That is, in the example above, the sub ref is called only
 for elements that have already passed the criteria of having a "_tag"
@@ -2740,8 +2732,12 @@ with the value "baz", you'd have to do it like:
   );
 
 Coderef criteria are more expressive than C<(attr_name, attr_value)>
-criteria, and all C<(attr_name, attr_value)> criteria could be
+and C<(attr_name, qr/.../)>
+criteria, and all C<(attr_name, attr_value)>
+and C<(attr_name, qr/.../)>
+criteria could be
 expressed in terms of coderefs.  However, C<(attr_name, attr_value)>
+and C<(attr_name, qr/.../)>
 criteria are a convenient shorthand.  (In fact, C<look_down> itself is
 basically "shorthand" too, since anything you can do with C<look_down>
 you could do by traversing the tree, either with the C<traverse>
@@ -2764,8 +2760,8 @@ sub look_down {
       Carp::croak "param list to look_down ends in a key!" if $i == $#_;
       push @criteria, [ scalar($_[0]->_fold_case($_[$i])), 
                         defined($_[$i+1])
-                          ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
-                            # yes, leave that LC!
+                          ? ( ( ref $_[$i+1] ? $_[$i+1] : lc( $_[$i+1] )), ref( $_[$i+1] ) )
+                                               # yes, leave that LC!
                           : undef
                       ];
       $i += 2;
@@ -2787,10 +2783,16 @@ sub look_down {
             (defined($val = $this->{ $c->[0] }))
               ? (
                   !defined $c->[1]  # actual is def, critval is undef => fail
-                  or ref $val ne $c->[2]
+		     # allow regex matching
+		    # allow regex matching
+		  or (
+		  $c->[2] eq 'Regexp'
+		    ? $val !~ $c->[1]
+		    : ( ref $val ne $c->[2]
                    # have unequal ref values => fail
                   or lc($val) ne $c->[1]
                    # have unequal lc string values => fail
+                  ))
                 )
               : (defined $c->[1]) # actual is undef, critval is def => fail
       }
@@ -2839,7 +2841,7 @@ sub look_up {
       Carp::croak "param list to look_up ends in a key!" if $i == $#_;
       push @criteria, [ scalar($_[0]->_fold_case($_[$i])),
                         defined($_[$i+1])
-                          ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
+                          ? ( ( ref $_[$i+1] ? $_[$i+1] : lc( $_[$i+1] )), ref( $_[$i+1] ) )
                           : undef  # Yes, leave that LC!
                       ];
       $i += 2;
@@ -2861,10 +2863,14 @@ sub look_up {
             (defined($val = $this->{ $c->[0] }))
               ? (
                   !defined $c->[1]  # actual is def, critval is undef => fail
-                  or ref $val ne $c->[2]
+		  or (
+		  $c->[2] eq 'Regexp'
+		    ? $val !~ $c->[1]
+		    : ( ref $val ne $c->[2]
                    # have unequal ref values => fail
                   or lc($val) ne $c->[1]
                    # have unequal lc string values => fail
+                  ))
                 )
               : (defined $c->[1]) # actual is undef, critval is def => fail
       }
@@ -3484,9 +3490,6 @@ $h->objectify_text, perform whatever task that you needed that for,
 and then call $h->deobjectify_text before calling anything like
 $h->as_text.
 
-This method is experimental, and you are encouraged to report any
-problems you encounter with it.
-
 =item $h->deobjectify_text()
 
 This undoes the effect of $h->objectify_text.  That is, it takes any
@@ -3500,9 +3503,6 @@ after that).  So that you can detect that condition, if $h is itself a
 "~text" pseudo-element, then this method returns the value of the
 "text" attribute, which should be a defined value; in all other cases,
 it returns undef.
-
-This method is experimental, and you are encouraged to report any
-problems you encounter with it.
 
 (This method assumes that no "~text" pseudo-element has any children.)
 

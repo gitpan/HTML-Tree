@@ -1,23 +1,13 @@
 
 require 5;
-# Time-stamp: "2002-08-16 11:49:28 MDT"
+# Time-stamp: "2003-09-15 00:32:45 ADT"
 package HTML::TreeBuilder;
-#TODO: maybe have it recognize higher versions of
-# Parser, and register the methods as subs?
-# Hm, but TreeBuilder wouldn't be subclassable, then.
-
-# TODO: document tweaks?
-# TODO: deprecate subclassing TreeBuilder?
 
 use strict;
 use integer; # vroom vroom!
 use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
 $VERSION = '3.13';
-
-# TODO: thank whoever pointed out the TEXTAREA bug
-# TODO: make require Parser of at least version... 2.27?
-#  The one with the stop-parse.  Then kill the whole stunting thing.
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...

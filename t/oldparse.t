@@ -1,6 +1,26 @@
-print "1..1\n";
+
+
+# -*-Perl-*-
+# Time-stamp: "2003-09-15 01:45:31 ADT"
+BEGIN { print "1..1\n"; }
 
 use HTML::Parse;
+
+print "#Using HTML::TreeBuilder version v$HTML::TreeBuilder::VERSION\n";
+print "#Using HTML::Element version v$HTML::Element::VERSION\n";
+print "#Using HTML::Parser version v", $HTML::Parser::VERSION || "?", "\n";
+print "#Using HTML::Entities version v", $HTML::Entities::VERSION || "?", "\n";
+print "#Using HTML::Tagset version v", $HTML::Tagset::VERSION || "?", "\n";
+print "# Running under perl version $] for $^O",
+  (chr(65) eq 'A') ? "\n" : " in a non-ASCII world\n";
+print "# Win32::BuildNumber ", &Win32::BuildNumber(), "\n"
+  if defined(&Win32::BuildNumber) and defined &Win32::BuildNumber();
+print "# MacPerl verison $MacPerl::Version\n"
+  if defined $MacPerl::Version;
+printf 
+  "# Current time local: %s\n# Current time GMT:   %s\n",
+  scalar(localtime($^T)), scalar(gmtime($^T));
+
 
 # This is a very simple test.  It basically just ensures that the
 # HTML::Parse module is parsed ok by perl.
@@ -48,18 +68,24 @@ EOT
 $h = parse_html $HTML;
 
 # This ensures that the output from $h->dump goes to STDOUT
-open(STDERR, '>&STDOUT');  # Redirect STDERR to STDOUT
-print STDERR "\n";
-$h->dump;
 
-$html = $h->as_HTML;
+$html = $h->as_HTML(undef, '  ');
+
+{
+ my $h = $html;
+ $h =~ s/^/\# /mg;
+ print "# HTML: $h#\n";
+}
 
 # This is a very simple test just to ensure that we get something
 # sensible back.
-print "not " unless $html =~ /<BODY>/i && $html =~ /www\.sn\.no/
-	         && $html !~ /comment/ && $html =~ /Gisle/;
-
-print "ok 1\n\n";
+if( $html =~ /<BODY>/i && $html =~ /www\.sn\.no/
+	         && $html !~ /comment/ && $html =~ /Gisle/
+) {
+  print "ok 1\n\n";
+} else {
+  print "not ok 1\n\n";
+}
 
 $h->delete;
 

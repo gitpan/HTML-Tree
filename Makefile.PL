@@ -1,10 +1,9 @@
 require 5.004;
 use ExtUtils::MakeMaker;
-# Time-stamp: "2002-08-27 20:28:03 MDT"
+# Time-stamp: "2003-09-15 01:50:36 ADT"
 
 WriteMakefile(
     'NAME'	   => 'HTML-Tree',
-    # 'VERSION'      => '3.08',
     'VERSION_FROM' => 'lib/HTML/Tree.pm', # finds $VERSION
     'PREREQ_PM'    => {	
 	                 'HTML::Parser' => 2.19,   # at LEAST!
@@ -13,7 +12,7 @@ WriteMakefile(
     'AUTHOR' => 'Sean M. Burke (sburke@cpan.org)',
     'ABSTRACT' => 'build and scan parse-trees of HTML',
 
-    'dist'           => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
+    'dist'           => { COMPRESS => 'gzip -6f', SUFFIX => 'gz', },
 );
 
 

@@ -1,9 +1,16 @@
 
-# -*-Perl-*-
-# Time-stamp: "2003-09-15 01:45:39 ADT"
-
-BEGIN {print "1..1\n";}
+use Test;
+# Time-stamp: "2003-09-15 01:46:00 ADT"
 use HTML::TreeBuilder;
+BEGIN { plan tests => 4 }
+use strict;
+
+BEGIN { ok 1 }
+use HTML::TreeBuilder;
+BEGIN { ok 1 }
+use HTML::Element;
+BEGIN { ok 1 }
+
 
 print "#Using HTML::TreeBuilder version v$HTML::TreeBuilder::VERSION\n";
 print "#Using HTML::Element version v$HTML::Element::VERSION\n";
@@ -19,18 +26,6 @@ print "# MacPerl verison $MacPerl::Version\n"
 printf 
   "# Current time local: %s\n# Current time GMT:   %s\n",
   scalar(localtime($^T)), scalar(gmtime($^T));
-
-{
-  use strict;
-  my $t = HTML::TreeBuilder->new;
-  $t->parse('stuff <em name="foo">lalal</em>');
-  $t->eof;
-  my $c = $t->clone();
-  $c->delete();
-  if( $t->find_by_attribute('name', 'foo') ) {
-    print "ok 1\n";
-  } else {
-    print "not ok 1\n";
-  }
-  $t->delete();
-}
+  
+ok 1;
+print "# byebye from ", __FILE__, "\n";

@@ -1,4 +1,19 @@
-# Time-stamp: "2003-01-18 19:14:00 AHST"
+# Time-stamp: "2003-09-15 01:01:36 ADT"
+
+2003-09-15   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.18 -- bugfix to test, adding qr// to look_(down|up)
+
+   Accepting Iain 'Spoon' Truskett's neat patch for qr// as lookdown
+   operators (previously you had to do sub { $_[0]=~ m/.../}).
+
+   Rewrote some tests, notably parsefile.t, which was pointlessly
+   failing because of an incompatibility with an HTML::Parser version.
+
+   Removed the disused ancient utils "dtd2pm" and "ent" from the dist.
+
+   Added TODO file.
+
 
 2003-01-18   Sean M. Burke <sburke@cpan.org>
 
