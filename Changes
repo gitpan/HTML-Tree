@@ -1,4 +1,13 @@
-# Time-stamp: "2002-10-19 21:11:08 MDT"
+# Time-stamp: "2002-11-06 23:44:57 MST"
+
+2002-11-06   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.15 -- e few new features.
+
+   Added the aliases "descendents" and "find" to HTML::Element.
+
+   Added a new method "simplify_pres" to HTML::Element.   
+
 
 2002-10-19   Sean M. Burke <sburke@cpan.org>
    Release 3.14 -- minor bugfix

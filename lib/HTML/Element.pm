@@ -1,8 +1,7 @@
 
 require 5;
-# Time-stamp: "2002-10-19 21:08:28 MDT"
+# Time-stamp: "2002-11-06 23:43:09 MST"
 package HTML::Element;
-# TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
@@ -154,7 +153,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.13';
+$VERSION = '3.15';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -2524,9 +2523,16 @@ listed in pre-order (i.e., an element appears before its
 content-elements).  Text segments DO NOT appear in the list.
 In scalar context, returns a count of all such elements.
 
+=item $h->descendents()
+
+This is just an alias to the C<descendants> method.
+
 =cut
 
 #'
+
+sub descendents { shift->descendants(@_) }
+
 sub descendants {
   my $start = shift;
   if(wantarray) {
@@ -2567,7 +2573,18 @@ any of the specified tag names.  In scalar context, returns the first
 (in pre-order traversal of the tree) such element found, or undef if
 none.
 
+=item $h->find('tag', ...)
+
+This is just an alias to C<find_by_tag_name>.  (There was once
+going to be a whole find_* family of methods, but then look_down
+filled that niche, so there turned out not to be much reason for the
+verboseness of the name "find_by_tag_name".)
+
 =cut
+
+sub find { shift->find_by_tag_name( @_ ) }
+ # yup, a handy alias
+
 
 sub find_by_tag_name {
   my(@pile) = shift(@_); # start out the to-do stack for the traverser
@@ -3089,6 +3106,64 @@ sub extract_links
     );
     \@links;
 }
+
+#--------------------------------------------------------------------------
+
+=item $h->simplify_pres
+
+In text bits under PRE elements that are at/under $h, this routine
+nativizes all newlines, and expands all tabs.
+
+That is, if you read a file with lines delimited by C<\cm\cj>'s, the
+text under PRE areas will have C<\cm\cj>'s instead of C<\n>'s. Calling
+$h->nativize_pre_newlines on such a tree will turn C<\cm\cj>'s into
+C<\n>'s.
+
+Tabs are expanded to however many spaces it takes to get
+to the next 8th column -- the usual way of expanding them.
+
+=cut
+
+sub simplify_pres {
+  my $pre = 0;
+ 
+  my $sub;
+  my $line;
+  $sub = sub {
+    ++$pre if $_[0]->{'_tag'} eq 'pre';
+    #print "Under $_[0]{'_tag'} tag...  ($pre)\n";
+    foreach my $it (@{ $_[0]->{'_content'} || return }) {
+      if(ref $it) {
+        $sub->( $it );  # recurse!
+      } elsif($pre) {
+        #$it =~ s/(?:(?:\cm\cj*)|(?:\cj))/\n/g;
+
+        $it =
+	  join "\n",
+  	  map {;
+  	    $line = $_;
+  	    while($line =~
+             s/^([^\t]*)(\t+)/$1.(" " x ((length($2)<<3)-(length($1)&7)))/e
+              # Sort of adapted from Text::Tabs -- yes, it's hardwired-in that
+              # tabs are at every EIGHTH column.
+            ){}
+            $line;
+	  }
+	  split /(?:(?:\cm\cj*)|(?:\cj))/, $it, -1
+	;
+      }
+    }
+    --$pre if $_[0]->{'_tag'} eq 'pre';
+    return;
+  };
+  $sub->( $_[0] );
+  
+  undef $sub;
+  return;
+
+}
+
+
 
 #--------------------------------------------------------------------------
 
