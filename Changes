@@ -1,4 +1,12 @@
-# Time-stamp: "2000-03-08 01:23:45 MST"
+# Time-stamp: "2000-03-08 18:52:00 MST"
+
+2000-03-08   Sean M. Burke <sburke@netadventure.net>
+
+   Release 0.64
+
+   Bugfix:  $element->replace_with_content() would cause
+   a fatal error if any of $element's content nodes were
+   text segments.  Fixed.
 
 2000-03-08   Sean M. Burke <sburke@netadventure.net>
 

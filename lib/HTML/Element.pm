@@ -1,5 +1,5 @@
  
-# Time-stamp: "2000-03-08 01:32:06 MST"
+# Time-stamp: "2000-03-08 18:52:31 MST"
 package HTML::Element;
 
 # TODO: add 'are_element_identical' method ?
@@ -149,7 +149,7 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.48';
+$VERSION = '1.49';
 sub Version { $VERSION; }
 
 $html_uc = 0;
@@ -622,12 +622,12 @@ sub replace_with_content {
          @$parent_content
   ;
 
-  for (@$content_r) {  $_->{'_parent'} = $parent  }
+  for (@$content_r) {  $_->{'_parent'} = $parent if ref $_ }
 
   @$content_r = (); # unattach from old parent
   $self->{'_parent'} = undef; # detach old parent from its parent
 
-  return $self;  # note, doesn't destroy it.
+  return $self;  # note: doesn't destroy it.
 }
 
 
