@@ -1,6 +1,6 @@
 package HTML::FormatText;
 
-# $Id: FormatText.pm,v 1.16 1998/03/26 20:31:30 aas Exp $
+# $Id: FormatText.pm,v 1.17 1999/11/11 10:03:01 gisle Exp $
 
 =head1 NAME
 
@@ -8,10 +8,12 @@ HTML::FormatText - Format HTML as text
 
 =head1 SYNOPSIS
 
+ require HTML::TreeBuilder;
+ $tree = HTML::TreeBuilder->new->parse_file("test.html");
+
  require HTML::FormatText;
- $html = parse_htmlfile("test.html");
  $formatter = HTML::FormatText->new(leftmargin => 0, rightmargin => 50);
- print $formatter->format($html);
+ print $formatter->format($tree);
 
 =head1 DESCRIPTION
 
@@ -47,7 +49,7 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas <aas@sn.no>
+Gisle Aas <gisle@aas.no>
 
 =cut
 
@@ -57,7 +59,7 @@ use vars qw(@ISA $VERSION);
 require HTML::Formatter;
 @ISA = qw(HTML::Formatter);
 
-$VERSION = sprintf("%d.%02d", q$Revision: 1.16 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.17 $ =~ /(\d+)\.(\d+)/);
 
 
 sub default_values

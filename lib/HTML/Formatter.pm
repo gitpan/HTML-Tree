@@ -1,6 +1,6 @@
 package HTML::Formatter;
 
-# $Id: Formatter.pm,v 1.20 1998/03/26 20:32:00 aas Exp $
+# $Id: Formatter.pm,v 1.21 1999/11/11 10:03:32 gisle Exp $
 
 =head1 NAME
 
@@ -33,7 +33,7 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas <aas@sn.no>
+Gisle Aas <gisle@aas.no>
 
 =cut
 
@@ -45,7 +45,7 @@ use Carp;
 use UNIVERSAL qw(can);
 
 use vars qw($VERSION);
-$VERSION = sprintf("%d.%02d", q$Revision: 1.20 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.21 $ =~ /(\d+)\.(\d+)/);
 
 sub new
 {

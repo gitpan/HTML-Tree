@@ -66,7 +66,7 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas <aas@sn.no>
+Gisle Aas <gisle@aas.no>
 
 =cut
 
@@ -81,7 +81,7 @@ use vars qw(@ISA $VERSION
 require HTML::Element;
 require HTML::Parser;
 @ISA = qw(HTML::Element HTML::Parser);
-$VERSION = sprintf("%d.%02d", q$Revision: 2.6 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 2.8 $ =~ /(\d+)\.(\d+)/);
 
 # Elements that should only be present in the header
 %isHeadElement = map { $_ => 1 } qw(title base link meta isindex script);
@@ -123,7 +123,10 @@ sub new
 {
     my $class = shift;
     my $self = HTML::Element->new('html');  # Initialize HTML::Element part
-    $self->{'_buf'} = '';  # The HTML::Parser part of us needs this
+    my $other_self = HTML::Parser->new;
+    %$self = (%$self, %$other_self);              # copy fields
+    bless $other_self, "SomethingReallyHarmless"; # unbless, avoid destructor
+    undef($other_self);
 
     # Initialize parser settings
     $self->{'_implicit_tags'}  = 1;

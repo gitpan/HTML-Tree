@@ -1,6 +1,6 @@
 package HTML::FormatPS;
 
-# $Id: FormatPS.pm,v 1.25 1998/03/26 20:31:02 aas Exp $
+# $Id: FormatPS.pm,v 1.26 1999/11/11 10:03:13 gisle Exp $
 
 =head1 NAME
 
@@ -8,12 +8,14 @@ HTML::FormatPS - Format HTML as postscript
 
 =head1 SYNOPSIS
 
+  require HTML::TreeBuilder;
+  $tree = HTML::TreeBuilder->new->parse_file("test.html");
+
   require HTML::FormatPS;
-  $html = parse_htmlfile("test.html");
   $formatter = new HTML::FormatPS
 		   FontFamily => 'Helvetica',
 		   PaperSize  => 'Letter';
-  print $formatter->format($html);
+  print $formatter->format($tree);
 
 =head1 DESCRIPTION
 
@@ -102,7 +104,7 @@ modify it under the same terms as Perl itself.
 
 =head1 AUTHOR
 
-Gisle Aas <aas@sn.no>
+Gisle Aas <gisle@aas.no>
 
 =cut
 
@@ -113,7 +115,7 @@ use vars qw(@ISA $VERSION);
 require HTML::Formatter;
 @ISA = qw(HTML::Formatter);
 
-$VERSION = sprintf("%d.%02d", q$Revision: 1.25 $ =~ /(\d+)\.(\d+)/);
+$VERSION = sprintf("%d.%02d", q$Revision: 1.26 $ =~ /(\d+)\.(\d+)/);
 
 use vars qw(%PaperSizes %FontFamilies @FontSizes %param $DEBUG);
 
