@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2002-07-30 01:05:06 MDT"
+# Time-stamp: "2002-08-16 11:49:28 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -13,7 +13,7 @@ use strict;
 use integer; # vroom vroom!
 use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.12';
+$VERSION = '3.13';
 
 # TODO: thank whoever pointed out the TEXTAREA bug
 # TODO: make require Parser of at least version... 2.27?
@@ -494,6 +494,12 @@ sub warning {
                 }
             }
         } elsif ($HTML::TreeBuilder::isTableElement{$tag}) {
+            if(!$pos->is_inside('table')) {
+                print $indent, " * \U$tag\E makes an implicit TABLE\n"
+                  if DEBUG > 1;
+                $self->insert_element('table', 1);
+            }
+
             if($tag eq 'td' or $tag eq 'th') {
                 # Get under a tr one way or another
                 unless(
@@ -522,11 +528,6 @@ sub warning {
             #   th closes any open th OR td (limited at a table)
             #   ...implementable as "close to a tr, or make a tr"
             
-            if(!$pos->is_inside('table')) {
-                print $indent, " * \U$tag\E makes an implicit TABLE\n"
-                  if DEBUG > 1;
-                $self->insert_element('table', 1);
-            }
         } elsif ($HTML::TreeBuilder::isPhraseMarkup{$tag}) {
             if($ptag eq 'body' and $self->{'_implicit_body_p_tag'}) {
                 print
@@ -771,7 +772,7 @@ sub warning {
       return;
     }
 
-    unless($tag =~ m/^[-_a-zA-Z0-9:%]+$/s) {
+    unless(ref($tag) or $tag =~ m/^[-_a-zA-Z0-9:%]+$/s) {
       DEBUG and print "End-tag name $tag is no good.  Skipping.\n";
       return;
       # This avoids having Element's new() throw an exception.

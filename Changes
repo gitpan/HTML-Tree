@@ -1,4 +1,18 @@
-# Time-stamp: "2002-07-30 01:09:33 MDT"
+# Time-stamp: "2002-08-16 12:00:58 MDT"
+
+2002-08-16   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.13 -- basically a bugfix version
+
+   It turns out that 3.12 had a hideous HTML::TreeBuilder bug that
+   made the whole thing damn near useless.  Fixed.
+   Many many thanks to Michael Koehne for catching this!
+
+   Wrote t/parse.t, to catch this sort of thing from happening again.
+   
+   Fixed a bug that would treat <td> outside any table context
+   as <tr><table><td> instead of <table><tr><td>
+
 
 
 2002-07-30   Sean M. Burke <sburke@cpan.org>
