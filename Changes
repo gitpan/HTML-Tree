@@ -1,4 +1,37 @@
-# Time-stamp: "2001-01-20 13:40:45 MST"
+# Time-stamp: "2001-03-10 22:42:46 MST"
+
+2001-03-10   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.10
+
+   Now bundling three relevent The Perl Journal articles by me:
+   HTML::Tree::AboutObjects, HTML::Tree::AboutTrees, and
+   HTML::Tree::Scanning.
+
+   Vadims_Beilins@swh-t.lv observes that $h->push_content(LoL)
+   doesn't take care of _parent bookkeeping right.  FIXED.
+   John Woffindin <john@xoren.co.nz> notes a similar bug in clone();
+   FIXED.
+
+   Adding no_space_compacting feature to TreeBuilder, at suggestion of
+   Victor Wagner <vitus@ice.ru>.
+
+   Incorporating the clever suggestion (from Martin H. Sluka,
+   <martin@sluka.de>) that $element->extract_links's returned LoL
+   should contain a third item (for the attribute name) in the
+   per-link listref.  I also add a fourth item, the tagname of the
+   element.
+
+   New method, "elementify", in HTML::TreeBuilder.
+
+   Various improvements and clarifications to the POD in
+   HTML::TreeBuilder and HTML::Element.
+
+   Some new methods in HTML::Element: "number_lists",
+   "objectify_text", and "deobjectify_text".
+
+   HTML::Element and HTML::TreeBuilder versions both bumped up from
+   3.08 to 3.10, to keep pace with the HTML::Tree version.
 
 2001-01-21   Sean M. Burke <sburke@cpan.org>
 

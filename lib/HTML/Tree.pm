@@ -1,7 +1,7 @@
 
-require 5; # Time-stamp: "2001-01-20 13:39:01 MST"
+require 5; # -*-Text-*- Time-stamp: "2001-03-10 21:16:08 MST"
 package HTML::Tree;
-$VERSION = $VERSION = 3.09;
+$VERSION = $VERSION = 3.10;
   # This is where the dist gets its version from.
 
 # Basically a happy alias to HTML::TreeBuilder
@@ -32,9 +32,10 @@ HTML-Tree - overview of HTML::TreeBuilder et al
 
 HTML-Tree is a suite of Perl modules for making parse trees out of
 HTML source.  It consists of mainly two modules, whose documentation
-you should refer to: L<HTML::TreeBuilder> and L<HTML::Element>.
+you should refer to: L<HTML::TreeBuilder|HTML::TreeBuilder>
+and L<HTML::Element|HTML::Element>.
 
-HTML::TreeBuilder is the module builds the parse trees.  (It uses
+HTML::TreeBuilder is the module that builds the parse trees.  (It uses
 HTML::Parser to do the work of breaking the HTML up into tokens.)
 
 The tree that TreeBuilder builds for you is made up of objects of the
@@ -45,10 +46,25 @@ for HTML::TreeBuilder and HTML::Element, it may be because you are
 unfamiliar with tree-shaped data structures, or with object-oriented
 modules in general.  I have written some articles for I<The Perl
 Journal> (C<www.tpj.com>) that seek to provide that background:
-my article "Scanning HTML" in TPJ19; my article "Trees" in TPJ18, and
-my article "A User's View of Object-Oriented Modules" in TPJ17.
-The full text of those articles will likely appear in a later version
-of this HTML-Tree module distribution.
+my article "A User's View of Object-Oriented Modules" in TPJ17;
+my article "Trees" in TPJ18;
+and
+my article "Scanning HTML" in TPJ19.
+The full text of those articles is contained in this distribution, as:
+
+L<HTML::Tree::AboutObjects|HTML::Tree::AboutObjects>
+-- article: "User's View of Object-Oriented Modules"
+
+L<HTML::Tree::AboutTrees|HTML::Tree::AboutTrees>
+-- article: "Trees"
+
+L<HTML::Tree::Scanning|HTML::Tree::Scanning>
+-- article: "Scanning HTML"
+
+Readers already familiar with object-oriented modules and tree-shaped
+data structures should read just the last article.  Readers without
+that background should read the first, then the second, and then the
+third.
 
 =head1 SEE ALSO
 
@@ -60,10 +76,21 @@ L<HTML::DOMbo>
 =head1 COPYRIGHT
 
 Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
+(Except the articles contained in HTML::Tree::AboutObjects,
+HTML::Tree::AboutTrees, and HTML::Tree::Scanning, which are all
+copyright 2000 The Perl Journal.)
 
-The whole HTML-Tree distribution, of which this file is a part, is
-free software; you can redistribute it and/or modify it under the same
-terms as Perl itself.
+Except for those three TPJ articles, the whole HTML-Tree distribution,
+of which this file is a part, is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+Those three TPJ articles may be distributed under the same terms as
+Perl itself.
+
+The programs and documentation in this dist are distributed in
+the hope that they will be useful, but without any warranty; without
+even the implied warranty of merchantability or fitness for a
+particular purpose.
 
 =head1 AUTHOR
 

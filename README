@@ -1,32 +1,45 @@
-# Time-stamp: "2001-01-20 13:33:52 MST"
+# Time-stamp: "2001-02-23 20:14:01 MST"
 
 HTML-Tree
 ---------
 
-This is a collection of modules that represent, create, and extract
-information from HTML syntax trees.  These modules used to be part of
-the libwww-perl distribution, but are now unbundled in order to
-facilitate a separate development track.  Bug reports and discussions
-about these modules can still be sent to the <libwww@perl.org> mailing
-list, or to <sburke@cpan.org>.
+This distribution contains a suite of modules for representing,
+creating, and extracting information from HTML syntax trees; there is
+also relevent documentation.  These modules used to be part of the
+libwww-perl distribution, but are now unbundled in order to facilitate
+a separate development track.  Bug reports and discussions about these
+modules can still be sent to the <libwww@perl.org> mailing list, or to
+<sburke@cpan.org>.
 
-The modules present in this collection are:
+The modules and documentation present in this collection are:
 
   HTML::Tree -- overview of the modules.
 
-  HTML::Element - represents the nodes of the HTML syntax trees.  The
-        elements have other elements and text segments as children.
-        The HTML::Element class have methods to methods to build,
+  HTML::Tree::AboutObjects -- an article by Sean M. Burke from
+    The Perl Journal #17: "User's View of Object-Oriented Modules"
+
+  HTML::Tree::AboutTrees -- an article by Sean M. Burke from
+    The Perl Journal #18: "Trees", about tree-shaped data
+    structures in Perl.
+
+  HTML::Tree::Scanning -- an article by Sean M. Burke from
+    The Perl Journal #19: "Scanning HTML".
+
+
+  HTML::Element - class for representing the nodes of the HTML syntax
+        trees.  The elements have other elements and text segments
+        as children.  The HTML::Element class has methods to build,
         alter, and traverse the structure of the tree.
 
-  HTML::TreeBuilder - uses HTML::Parser to read HTML document text and
-        build from it a syntax tree made of HTML::Element nodes.
+  HTML::TreeBuilder - a class that uses HTML::Parser to read HTML
+        document text and build from it a syntax tree made of
+        HTML::Element nodes.
 
-  HTML::Parse - deprecated.  Now just a wrapper around
+  HTML::Parse - deprecated module.  Now just a wrapper around
         HTML::TreeBuilder
 
-  HTML::AsSubs - Easy way to build an HTML syntax tree by nesting
-        functions.
+  HTML::AsSubs - module providing an easy way to build an HTML syntax
+        tree by nesting functions.
 
 
 
@@ -53,8 +66,19 @@ Or see also "perldoc perlmodinstall"
 
 COPYRIGHT
 
-  (c) 1995-1999  Gisle Aas.
-  (c) 1999-2001  Sean M. Burke
+Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
+(Except the articles contained in HTML::Tree::AboutObjects,
+HTML::Tree::AboutTrees, and HTML::Tree::Scanning, which are all
+copyright 2000 The Perl Journal.)
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+Except for those three TPJ articles, the whole HTML-Tree distribution,
+of which this file is a part, is free software; you can redistribute
+it and/or modify it under the same terms as Perl itself.
+
+Those three TPJ articles may be distributed under the same terms as
+Perl itself.
+
+The programs in this library are distributed in the hope that they
+will be useful, but without any warranty; without even the implied
+warranty of merchantability or fitness for a particular purpose.
+

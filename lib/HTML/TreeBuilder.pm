@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-11-03 15:52:10 MST"
+# Time-stamp: "2001-03-10 22:56:34 MST"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -12,7 +12,7 @@ package HTML::TreeBuilder;
 use strict;
 use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.08';
+$VERSION = '3.10';
 
 # TODO: thank whoever pointed out the TEXTAREA bug
 # TODO: make require Parser of at least version... 2.27?
@@ -112,6 +112,7 @@ sub new { # constructor!
   $self->{'_ignore_unknown'}     = 1;
   $self->{'_ignore_text'}        = 0;
   $self->{'_warn'}               = 0;
+  $self->{'_no_space_compacting'}= 0;
   $self->{'_store_comments'}     = 0;
   $self->{'_store_pis'}          = 0;
   $self->{'_store_declarations'} = 0;
@@ -128,11 +129,13 @@ sub new { # constructor!
   # rebless to our class
   bless $self, $class;
 
+  $self->{'_element_count'} = 1;
+    # undocumented, informal, and maybe not exactly correct
+
   $self->{'_head'} = $self->insert_element('head',1);
   $self->{'_pos'} = undef; # pull it back up
   $self->{'_body'} = $self->insert_element('body',1);
   $self->{'_pos'} = undef; # pull it back up again
-  $self->{'_implicit'} = 1;
 
   return $self;
 }
@@ -151,6 +154,7 @@ sub _elem # universal accessor...
 sub implicit_tags  { shift->_elem('_implicit_tags',  @_); }
 sub implicit_body_p_tag  { shift->_elem('_implicit_body_p_tag',  @_); }
 sub p_strict       { shift->_elem('_p_strict',  @_); }
+sub no_space_compacting { shift->_elem('_no_space_compacting', @_); }
 sub ignore_unknown { shift->_elem('_ignore_unknown', @_); }
 sub ignore_text    { shift->_elem('_ignore_text',    @_); }
 sub ignore_ignorable_whitespace  { shift->_elem('_tighten',    @_); }
@@ -913,6 +917,7 @@ sub warning {
     return unless length $text; # I guess that's always right
     
     my $ignore_text = $self->{'_ignore_text'};
+    my $no_space_compacting = $self->{'_no_space_compacting'};
     
     my $pos = $self->{'_pos'} || $self;
     
@@ -1027,7 +1032,7 @@ sub warning {
         #print "POS is now $pos, ", $pos->{'_tag'}, "\n";
         
         return if $ignore_text;
-        $text =~ s/\s+/ /g;  # canonical space
+        $text =~ s/\s+/ /g unless $no_space_compacting ;  # canonical space
         
         print
           $indent, " (Attaching text node ($nugget) under ",
@@ -1081,6 +1086,7 @@ sub comment {
     $self->{'_element_class'} || 'HTML::Element'
    )->new('~comment'))->{'text'} = $text;
   $pos->push_content($e);
+  ++($self->{'_element_count'});
 
   &{  $self->{'_tweak_~comment'}
       || $self->{'_tweak_*'}
@@ -1120,6 +1126,7 @@ sub declaration {
     $self->{'_element_class'} || 'HTML::Element'
    )->new('~declaration'))->{'text'} = $text;
   $pos->push_content($e);
+  ++($self->{'_element_count'});
 
   &{  $self->{'_tweak_~declaration'}
       || $self->{'_tweak_*'}
@@ -1155,6 +1162,7 @@ sub process {
     $self->{'_element_class'} || 'HTML::Element'
    )->new('~pi'))->{'text'} = $text;
   $pos->push_content($e);
+  ++($self->{'_element_count'});
 
   &{  $self->{'_tweak_~pi'}
       || $self->{'_tweak_*'}
@@ -1190,7 +1198,14 @@ sub eof {
   
   my $x = $_[0];
   print "EOF received.\n" if DEBUG;
-  my $rv = $x->SUPER::eof(); # assumes a scalar return value
+  my(@rv);
+  if(wantarray) {
+    # I don't think this makes any difference for this particular
+    #  method, but let's be scrupulous, for once.
+    @rv = $x->SUPER::eof();
+  } else {
+    $rv[0] = $x->SUPER::eof();
+  }
   
   $x->end('html') unless $x eq ($x->{'_pos'} || $x);
    # That SHOULD close everything, and will run the appropriate tweaks.
@@ -1215,7 +1230,9 @@ sub eof {
   $x->delete_ignorable_whitespace()
    # this's why we trap this -- an after-method
    if $x->{'_tighten'} and ! $x->{'_ignore_text'};
-  return $rv;
+
+  return @rv if wantarray;
+  return $rv[0];
 }
 
 #==========================================================================
@@ -1263,6 +1280,8 @@ sub delete {
   # Deletes content, including content in some special attributes.
   # But doesn't empty out the hash.
 
+  $_[0]->{'_element_count'} = 1; # never hurts to be scrupulously correct
+
   delete @{$_[0]}{'_body', '_head', '_pos'};
   for (@{ delete($_[0]->{'_content'})
           || []
@@ -1288,13 +1307,27 @@ sub delete {
      if defined $_ and ref $_   #  Make sure it's an object.
         and $_ ne $_[0];   #  And avoid hitting myself, just in case!
   }
-
   return undef;
 }
 
 sub tighten_up { # legacy
   shift->delete_ignorable_whitespace(@_);
 }
+
+sub elementify {
+  # Rebless this object down into the normal element class.
+  my $self = $_[0];
+  my $to_class = ($self->{'_element_class'} || 'HTML::Element');
+  delete @{$self}{ grep {;
+    length $_ and substr($_,0,1) eq '_'
+   # The private attributes that we'll retain:
+    and $_ ne '_tag' and $_ ne '_parent' and $_ ne '_content'
+    and $_ ne '_implicit' and $_ ne '_pos'
+    and $_ ne '_element_class'
+  } keys %$self };
+  bless $self, $to_class;
+}
+
 
 #--------------------------------------------------------------------------
 1;
@@ -1321,6 +1354,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 
 =head1 DESCRIPTION
 
+(This class is part of the L<HTML::Tree|HTML::Tree> dist.)
+
 This class is for HTML syntax trees that get built out of HTML
 source.  The way to use it is to:
 
@@ -1332,13 +1367,15 @@ $tree->parse($document_content) and $tree->eof if you've got
 the content in a string) to parse the HTML
 document into the tree $tree.
 
+2b. call $root-E<gt>elementify() if you want.
+
 3. do whatever you need to do with the syntax tree, presumably
 involving traversing it looking for some bit of information in it,
 
-4. and finally, when you're done with the tree, call $tree->delete to
+4. and finally, when you're done with the tree, call $tree->delete() to
 erase the contents of the tree from memory.  This kind of thing
 usually isn't necessary with most Perl objects, but it's necessary for
-TreeBuilder objects.  See L<HTML::Element> for a more verbose
+TreeBuilder objects.  See L<HTML::Element|HTML::Element> for a more verbose
 explanation of why this is the case.
 
 =head1 METHODS AND ATTRIBUTES
@@ -1361,12 +1398,64 @@ option on, and $root->implicit_tags(0) turns it off.
 
 =over 4
 
+=item $root = HTML::TreeBuilder->new()
+
+This creates a new HTML::TreeBuilder object.  This method takes no
+attributes.
+
+=item $root->parse_file(...)
+
+[An important method inherited from L<HTML::Parser|HTML::Parser>, which
+see.]
+
+=item $root->parse(...)
+
+[A important method inherited from L<HTML::Parser|HTML::Parser>, which
+see.  See the note below for $root->eof().]
+
+=item $root->eof()
+
+This signals that you're finished parsing content into this tree; this
+runs various kinds of crucial cleanup on the tree.  This is called
+I<for you> when you call $root->parse_file(...), but not when
+you call $root->parse(...).  So if you call
+$root->parse(...), then you I<must> call $root->eof()
+once you've finished feeding all the chunks to parse(...), and
+before you actually start doing anything else with the tree in C<$root>.
+
+=item $root->delete()
+
+[An important method inherited from L<HTML::Element|HTML::Element>, which
+see.]
+
+=item $root->elementify()
+
+This changes the class of the object in $root from
+HTML::TreeBuilder to the class used for all the rest of the elements
+in that tree (generally HTML::Element).
+
+For most purposes, this is unnecessary, but if you call this after
+you're finished building a tree, then it keeps you from accidentally
+trying to call anything but HTML::Element methods on it.  (I.e., if
+you accidentally call C<$root-E<gt>parse_file(...)> on the
+already-complete and elementified tree, then instead of charging ahead
+and I<wreaking havoc>, it'll throw a fatal error -- since C<$root> is
+now an object just of class HTML::Element which has no C<parse_file>
+method.
+
+Note that elementify currently deletes all the private attributes of
+$root except for "_tag", "_parent", "_content", "_pos", and
+"_implicit".  If anyone requests that I change this to leave in yet
+more private attributes, I might do so, in future versions.
+
 =item $root->implicit_tags(value)
 
 Setting this attribute to true will instruct the parser to try to
 deduce implicit elements and implicit end tags.  If it is false you
 get a parse tree that just reflects the text as it stands, which is
-unlikely to be useful for anything but quick and dirty parsing.  (And, in current versions, $root->
+unlikely to be useful for anything but quick and dirty parsing.
+(In fact, I'd be curious to hear from anyone who finds it useful to
+have implicit_tags set to false.)
 Default is true.
 
 Implicit elements have the implicit() attribute set.
@@ -1402,6 +1491,21 @@ creating ignorable whitespace text nodes in the tree.  Default is
 true.  (In fact, I'd be interested in hearing if there's ever a case
 where you need this off, or where leaving it on leads to incorrect
 behavior.)
+
+=item $root->no_space_compacting(value)
+
+This determines whether TreeBuilder compacts all whitespace strings
+in the document (well, outside of PRE or TEXTAREA elements), or
+leaves them alone.  Normally (default, value of 0), each string of
+contiguous whitespace in the document is turned into a single space.
+But that's not done if no_space_compacting is set to 1.
+
+Setting no_space_compacting to 1 might be useful if you want
+to read in a tree just to make some minor changes to it before
+writing it back out.
+
+This method is experimental.  If you use it, be sure to report
+any problems you might have with it.
 
 =item $root->p_strict(value)
 
@@ -1492,13 +1596,52 @@ straightforward SGML rules.  That's why the internals of
 HTML::TreeBuilder consist of lots and lots of special cases -- instead
 of being just a generic SGML parser with HTML DTD rules plugged in.
 
+=head1 TRANSLATIONS?
+
+The techniques that HTML::TreeBuilder uses to perform what I consider
+very robust parses on everyday code are not things that can work only
+in Perl.  To date, the algorithms at the center of HTML::TreeBuilder
+have been implemented only in Perl, as far as I know; and I don't
+foresee getting around to implementing them in any other language any
+time soon.
+
+If, however, anyone is looking for a semester project for an applied
+programming class (or if they merely enjoy I<extra-curricular>
+masochism), they might do well to see about choosing as a topic the
+implementation/adaptation of these routines to any other interesting
+programming language that you feel currently suffers from a lack of
+robust HTML-parsing.  I welcome correspondence on this subject, and
+point out that one can learn a great deal about languages by trying to
+translate between them, and then comparing the result.
+
+The HTML::TreeBuilder source may seem long and complex, but it is
+rather well commented, and symbol names are generally
+self-explanatory.  (You are encouraged to read the Mozilla HTML parser
+source for comparison.)  Some of the complexity comes from little-used
+features, and some of it comes from having the HTML tokenizer
+(HTML::Parser) being a separate module, requiring somewhat of a
+different interface than you'd find in a combined tokenizer and
+tree-builder.  But most of the length of the source comes from the fact
+that it's essentially a long list of special cases, with lots and lots
+of sanity-checking, and sanity-recovery -- because, as Roseanne
+Rosannadanna once said, "it's always I<something>".
+
+Users looking to compare several HTML parsers should look at the
+source for Raggett's Tidy
+(C<E<lt>http://www.w3.org/People/Raggett/tidy/E<gt>>),
+Mozilla
+(C<E<lt>http://www.mozilla.org/E<gt>>),
+and possibly root around the browsers section of Yahoo
+to find the various open-source ones
+(C<E<lt>http://dir.yahoo.com/Computers_and_Internet/Software/Internet/World_Wide_Web/Browsers/E<gt>>).
+
 =head1 BUGS
 
-* Hopefully framesets behave correctly now.  Email me if you find a
-strange parse of documents with framesets.
+* Framesets seem to work correctly now.  Email me if you get a strange
+parse from a document with framesets.
 
-* Bad HTML code will, often as not, make for a bad parse tree. 
-Regrettable, but unavoidably true.
+* Really bad HTML code will, often as not, make for a somewhat
+objectionable parse tree.  Regrettable, but unavoidably true.
 
 * If you're running with implicit_tags off (God help you!), consider
 that $tree->content_list probably contains the tree or grove from the
@@ -1521,16 +1664,19 @@ going astray, and how you would prefer that it work instead.
 
 =head1 SEE ALSO
 
-L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
+L<HTML::Tree>; L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
 
 L<HTML::DOMbo>
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas; copyright 1999, 2000 Sean M. Burke.
-
+Copyright 1995-1998 Gisle Aas; copyright 1999-2001 Sean M. Burke.
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 

@@ -1,13 +1,16 @@
 
 require 5;
-# Time-stamp: "2000-11-03 16:18:26 MST"
+# Time-stamp: "2001-03-10 22:42:16 MST"
 package HTML::Element;
 # TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
 # TODO: maybe alias ->destroy to ->delete, because I keep mixing them up ?
-# TODO: totally revamp docs.  Add examples.  Throw in my TPJ19 article as POD?
+# TODO: maybe reorganize the docs some time?
+
+# TODO: $node->rebless( what_class )
+#        and/or  $node->rebless_down( what_class ) # recurses
 
 =head1 NAME
 
@@ -31,6 +34,8 @@ HTML::Element - Class for objects that represent HTML elements
   $a = $a->delete;
 
 =head1 DESCRIPTION
+
+(This class is part of the L<HTML::Tree|HTML::Tree> dist.)
 
 Objects of the HTML::Element class can be used to represent elements
 of HTML document trees.  These objects have attributes, notably attributes that
@@ -147,9 +152,9 @@ use HTML::Entities ();
 use HTML::Tagset ();
 use integer; # vroom vroom!
 
-use vars qw($VERSION $html_uc $Debug $ID_COUNTER);
+use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.08';
+$VERSION = '3.09';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -716,7 +721,7 @@ by adding or changing nodes as parents or children of other nodes.
 Adds the specified items to the I<end> of the content list of the
 element $h.  The items of content to be added should each be either a
 text segment (a string), an HTML::Element object, or an arrayref.
-Arrayrefs are fed thru C<$h-E<gh>new_from_lol(that_arrayref)> to
+Arrayrefs are fed thru C<$h-E<gt>new_from_lol(that_arrayref)> to
 convert them into elements, before being added to the content
 list of $h.  This means you can say things concise things like:
 
@@ -783,6 +788,7 @@ sub push_content
         if (ref($_) eq 'ARRAY') {
             # magically call new_from_lol
             push @$content, $self->new_from_lol($_);
+	    $content->[-1]->{'_parent'} = $self;
         } elsif(ref($_)) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
@@ -824,6 +830,7 @@ sub unshift_content
         if (ref($_) eq 'ARRAY') {
             # magically call new_from_lol
             unshift @$content, $self->new_from_lol($_);
+	    $content->[-1]->{'_parent'} = $self;
         } elsif (ref $_) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
@@ -1138,8 +1145,12 @@ sub clone {
   delete @$new{'_content', '_parent', '_pos', '_head', '_body'};
   
   # clone any contents
-  $new->{'_content'} = [  ref($it)->clone_list( @{$it->{'_content'}} )  ]
-   if $it->{'_content'} and @{$it->{'_content'}};
+  if($it->{'_content'} and @{$it->{'_content'}}) {
+    $new->{'_content'} = [  ref($it)->clone_list( @{$it->{'_content'}} )  ];
+    for(@{$new->{'_content'}}) {
+      $_->{'_parent'} = $new if ref $_;
+    }
+  }
 
   return $new;
 }
@@ -1351,7 +1362,9 @@ sub insert_element
         $e = $tag;
         $tag = $e->tag;
     } else { # just a tag name -- so make the element
-        $e = ($self->{'_element_class'} || __PACKAGE__)->new($tag)
+        $e = ($self->{'_element_class'} || __PACKAGE__)->new($tag);
+	++($self->{'_element_count'}) if exists $self->{'_element_count'};
+	 # undocumented.  see TreeBuilder.
     }
 
     $e->{'_implicit'} = 1 if $implicit;
@@ -1473,8 +1486,7 @@ a reference to that hash.
 
 =cut
 
-sub as_HTML
-{
+sub as_HTML {
   my($self, $entities, $indent, $omissible_map) = @_;
   #my $indent_on = defined($indent) && length($indent);
   my @html = ();
@@ -1665,8 +1677,7 @@ The XML is not indented.
 
 # TODO: make it wrap, if not indent?
 
-sub as_XML
-{
+sub as_XML {
   # based an as_HTML
   my($self, $entities) = @_;
   #my $indent_on = defined($indent) && length($indent);
@@ -2988,8 +2999,11 @@ Returns links found by traversing the element and all of its children
 and looking for attributes (like "href" in an "a" element, or "src" in
 an "img" element) whose values represent links.  The return value is a
 I<reference> to an array.  Each element of the array is reference to
-an array with two items: the link-value and a the element that has the
-attribute with that link-value.  You may or may not end up using the
+an array with I<four> items: the link-value, the element that has the
+attribute with that link-value, and the name of that attribute, and
+the tagname of that element.
+(Example: C<['http://www.suck.com/',> I<$elem_obj> C<, 'href', 'a']>.)
+You may or may not end up using the
 element itself -- for some purposes, you may use only the link value.
 
 You might specify that you want to extract links from just some kinds
@@ -2999,10 +3013,11 @@ represent links).  For instance, if you want to extract links from
 only "a" and "img" elements, you could code it like this:
 
   for (@{  $e->extract_links('a', 'img')  }) {
-      my($link, $element) = @$_;
+      my($link, $element, $attr, $tag) = @$_;
       print
-        "Hey, there's a ", $element->tag,
-        " that links to $link\n";
+        "Hey, there's a $tag that links to "
+        $link, ", in its $attr attribute, at ",
+        $element->address(), ".\n";
   }
 
 =cut
@@ -3035,7 +3050,7 @@ sub extract_links
             #  saving the value, if found.
             for (ref($link_attrs) ? @$link_attrs : $link_attrs) {
               if(defined(  $val = $self->attr($_)  )) {
-                push(@links, [$val, $self])
+                push(@links, [$val, $self, $_, $tag])
               }
             }
           }
@@ -3327,6 +3342,233 @@ sub new_from_lol {
 
 #--------------------------------------------------------------------------
 
+=item $h->objectify_text()
+
+This turns any text nodes under $h from mere text segments (strings)
+into real objects, pseudo-elements with a tag-name of "~text", and the
+actual text content in an attribute called "text".  (For a discussion
+of pseudo-elements, see the "tag" method, far above.)  This method is
+provided because, for some purposes, it is convenient or necessary to
+be able, for a given text node, to ask what element is its parent; and
+clearly this is not possible if a node is just a text string.
+
+Note that these "~text" objects are not recognized as text nodes by
+methods like as_text.  Presumably you will want to call
+$h->objectify_text, perform whatever task that you needed that for,
+and then call $h->deobjectify_text before calling anything like
+$h->as_text.
+
+This method is experimental, and you are encouraged to report any
+problems you encounter with it.
+
+=item $h->deobjectify_text()
+
+This undoes the effect of $h->objectify_text.  That is, it takes any
+"~text" pseudo-elements in the tree at/under $h, and deletes each one,
+replacing each with the content of its "text" attribute. 
+
+Note that if $h itself is a "~text" pseudo-element, it will be
+destroyed -- a condition you may need to treat specially in your
+calling code (since it means you can't very well do anything with $h
+after that).  So that you can detect that condition, if $h is itself a
+"~text" pseudo-element, then this method returns the value of the
+"text" attribute, which should be a defined value; in all other cases,
+it returns undef.
+
+This method is experimental, and you are encouraged to report any
+problems you encounter with it.
+
+(This method assumes that no "~text" pseudo-element has any children.)
+
+=cut
+
+sub objectify_text {
+  my(@stack) = ($_[0]);
+
+  my($this);
+  while(@stack) {
+    foreach my $c (@{( $this = shift @stack )->{'_content'}}) {
+      if(ref($c)) {
+        unshift @stack, $c;  # visit it later.
+      } else {
+        $c = ( $this->{'_element_class'} || __PACKAGE__
+             )->new('~text', 'text' => $c, '_parent' => $this);
+      }
+    }
+  }
+  return;
+}
+
+sub deobjectify_text {
+  my(@stack) = ($_[0]);
+  my($old_node);
+
+  if( $_[0]{'_tag'} eq '~text') { # special case
+    # Puts the $old_node variable to a different purpose
+    if($_[0]{'_parent'}) {
+      $_[0]->replace_with( $old_node = delete $_[0]{'text'} )->delete;
+    } else {  # well, that's that, then!
+      $old_node = delete $_[0]{'text'};
+    }
+
+    if(ref($_[0]) eq __PACKAGE__) { # common case
+      %{$_[0]} = ();  # poof!
+    } else {
+      # play nice:
+      delete $_[0]{'_parent'};
+      $_[0]->delete;
+    }
+    return '' unless defined $old_node; # sanity!
+    return $old_node;
+  }
+
+  while(@stack) {
+    foreach my $c (@{(shift @stack)->{'_content'}}) {
+      if(ref($c)) {
+        if($c->{'_tag'} eq '~text') {
+          $c = ($old_node = $c)->{'text'};
+	  if(ref($old_node) eq __PACKAGE__) { # common case
+            %$old_node = ();  # poof!
+          } else {
+            # play nice:
+            delete $old_node->{'_parent'};
+            $old_node->delete;
+          }
+        } else {
+          unshift @stack, $c;  # visit it later.
+        }
+      }
+    }
+  }
+
+  return undef;
+}
+
+#--------------------------------------------------------------------------
+
+=item $h->number_lists()
+
+For every UL, OL, DIR, and MENU element at/under $h, this sets a
+"_bullet" attribute for every child LI element.  For LI children of an
+OL, the "_bullet" attribute's value will be something like "4.", "d.",
+"D.", "IV.", or "iv.", depending on the OL element's "type" attribute.
+LI children of a UL, DIR, or MENU get their "_bullet" attribute set
+to "*".  
+There should be no other LIs (i.e., except as children of OL, UL, DIR,
+or MENU elements), and if there are, they are unaffected.
+
+=cut
+
+{
+  # The next three subs are basically copied from my module Number::Latin,
+  #  based on a one-liner by Abigail.  Yes, I could simply require that
+  #  module, and a roman numeral module too, but really, HTML-Tree already
+  #  has enough dependecies as it is; and anyhow, I don't need the functions
+  #  that do latin2int or roman2int.
+
+  sub _int2latin {
+    return undef unless defined $_[0];
+    return '0' if $_[0] < 1 and $_[0] > -1;
+    return '-' . _i2l( abs int $_[0] ) if $_[0] <= -1; # tolerate negatives
+    return       _i2l(     int $_[0] );
+  }
+
+  sub _int2LATIN {
+    # just the above plus uc
+    return undef unless defined $_[0];
+    return '0' if $_[0] < 1 and $_[0] > -1;
+    return '-' . uc(_i2l( abs int $_[0] )) if $_[0] <= -1;  # tolerate negs
+    return       uc(_i2l(     int $_[0] ));
+  }
+
+  my @alpha = ('', 'a' .. 'z'); 
+
+  sub _i2l { # the real work
+    my $int = $_[0] || return "";
+    _i2l(int (($int - 1) / 26)) . $alpha[$int % 26];  # yes, recursive
+  }
+}
+
+{
+  # And now, some much less impressive Roman numerals code:
+
+  my(@i) = ('', qw(I II III IV V VI VII VIII IX));
+  my(@x) = ('', qw(X XX XXX XL L LX LXX LXXX XC));
+  my(@c) = ('', qw(C CC CCC CD D DC DCC DCCC CM));
+  my(@m) = ('', qw(M MM MMM));
+
+  sub _int2ROMAN {
+    my($i, $pref);
+    return '0' if 0 == ($i = int($_[0] || 0)); # zero is a special case
+    return $i + 0 if $i <= -4000 or $i >= 4000;
+    # Because over 3999 would require non-ASCII chars, like D-with-)-inside
+    if($i < 0) { # grumble grumble tolerate negatives grumble
+      $pref = '-'; $i = abs($i);
+    } else {
+      $pref = '';  # normal case
+    }
+
+    my($x,$c,$m) = (0,0,0);
+    if(     $i >= 10) { $x = $i / 10; $i %= 10;
+      if(   $x >= 10) { $c = $x / 10; $x %= 10;
+        if( $c >= 10) { $m = $c / 10; $c %= 10; } } }
+    #print "m$m c$c x$x i$i\n";
+
+    return join('', $pref, $m[$m], $c[$c], $x[$x], $i[$i] );
+  }
+
+  sub _int2roman { lc(_int2ROMAN($_[0])) }
+}
+
+sub _int2int { $_[0] } # dummy
+
+%list_type_to_sub = (
+  'I' => \&_int2ROMAN,  'i' => \&_int2roman,
+  'A' => \&_int2LATIN,  'a' => \&_int2latin,
+  '1' => \&_int2int,
+);
+
+sub number_lists {
+  my(@stack) = ($_[0]);
+  my($this, $tag, $counter, $numberer); # scratch
+  while(@stack) { # yup, pre-order-traverser idiom
+    if(($tag = ($this = shift @stack)->{'_tag'}) eq 'ol') {
+      # Prep some things:
+      $counter = (($this->{'start'} || '') =~ m<^\s*(\d{1,7})\s*$>s) ? $1 : 1;
+      $numberer = $list_type_to_sub{ $this->{'type'} }
+               || $list_type_to_sub{'1'};
+
+      # Immeditately iterate over all children
+      foreach my $c (@{ $this->{'_content'} || next}) {
+	next unless ref $c;
+	unshift @stack, $c;
+	if($c->{'_tag'} eq 'li') {
+	  $counter = $1 if(($c->{'value'} || '') =~ m<^\s*(\d{1,7})\s*$>s);
+	  $c->{'_bullet'} = $numberer->($counter) . '.';
+	  ++$counter;
+	}
+      }
+
+    } elsif($tag eq 'ul' or $tag eq 'dir' or $tag eq 'menu') {
+      # Immeditately iterate over all children
+      foreach my $c (@{ $this->{'_content'} || next}) {
+	next unless ref $c;
+	unshift @stack, $c;
+	$c->{'_bullet'} = '*' if $c->{'_tag'} eq 'li';
+      }
+
+    } else {
+      foreach my $c (@{ $this->{'_content'} || next}) {
+	unshift @stack, $c if ref $c;
+      }
+    }
+  }
+  return;
+}
+
+
+#--------------------------------------------------------------------------
+
 =item $h->has_insane_linkage
 
 This method is for testing whether this element or the elements
@@ -3495,15 +3737,19 @@ calls the superclass method is not so bad, tho.)
 
 =head1 SEE ALSO
 
-L<HTML::TreeBuilder>; L<HTML::AsSubs>; L<HTML::Tagset>; 
+L<HTML::Tree>; L<HTML::TreeBuilder>; L<HTML::AsSubs>; L<HTML::Tagset>; 
 and, for the morbidly curious, L<HTML::Element::traverse>.
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas, 1999-2000 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas, 1999-2001 Sean M. Burke.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
+
+This program is distributed in the hope that it will be useful, but
+without any warranty; without even the implied warranty of
+merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 

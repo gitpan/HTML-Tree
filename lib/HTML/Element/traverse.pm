@@ -2,7 +2,7 @@
 # This is a .pm just to (try to) make some CPAN document converters
 #  convert it happily as part of the dist's documentation tree.
 package HTML::Element::traverse;
- # Time-stamp: "2001-01-20 12:28:57 MST"
+ # Time-stamp: "2001-03-10 21:32:23 MST"
 use HTML::Element ();
 $VERSION = $VERSION = $HTML::Element::VERSION;
 1;
@@ -84,7 +84,7 @@ following syntaxes:
 
 =item or $h->traverse(\&callback, $ignore_text)
 
-=item or $h->traverse([\&pre_callback,\&post_callback], $ignore_text)
+=item or $h->traverse( [\&pre_callback,\&post_callback] , $ignore_text)
 
 =back
 
@@ -119,7 +119,7 @@ arguments to the callback:
 Note that you can specify that the pre-order routine can
 be a different routine from the post-order one:
 
-    $h->traverse([\&pre_callback,\&post_callback], ...);
+    $h->traverse( [\&pre_callback,\&post_callback], ...);
 
 You can also specify that no post-order calls are to be made,
 by providing a false value as the post-order routine:
@@ -320,7 +320,7 @@ L<HTML::Element>
 
 =head1 COPYRIGHT
 
-Copyright 2000 Sean M. Burke
+Copyright 2000,2001 Sean M. Burke
 
 =head1 AUTHOR
 

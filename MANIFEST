@@ -8,6 +8,9 @@ lib/HTML/AsSubs.pm
 lib/HTML/Element/traverse.pm
 lib/HTML/Element.pm
 lib/HTML/Tree.pm
+lib/HTML/Tree/AboutObjects.pod
+lib/HTML/Tree/AboutTrees.pod
+lib/HTML/Tree/Scanning.pod
 lib/HTML/Parse.pm
 lib/HTML/TreeBuilder.pm
 t/oldparse.t
