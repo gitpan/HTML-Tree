@@ -1,13 +1,12 @@
 
 require 5;
-# Time-stamp: "2000-05-18 23:45:57 MDT"
+# Time-stamp: "2000-06-12 02:06:57 MDT"
 package HTML::Element;
 
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
 # TODO: maybe alias ->destroy to ->delete ?
 # TODO: have use a HTML::Tagset or something (to write)
-# TODO: have address() take relative address. (".3.1")
 
 =head1 NAME
 
@@ -151,7 +150,7 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.54';
+$VERSION = '1.55';
 sub Version { $VERSION; }
 
 # Constants for signalling back to the traverser:
@@ -304,13 +303,13 @@ sub attr
     my $self = shift;
     my $attr = lc shift;
     if (@_) {  # set
-	if(defined $_[0]) {
-	    my $old = $self->{$attr};
-	    $self->{$attr} = $_[0];
-	    return $old;
-	} else {  # delete, actually
-	    return delete $self->{$attr};
-	}
+        if(defined $_[0]) {
+            my $old = $self->{$attr};
+            $self->{$attr} = $_[0];
+            return $old;
+        } else {  # delete, actually
+            return delete $self->{$attr};
+        }
     } else {   # get
         return $self->{$attr};
     }
@@ -406,9 +405,10 @@ instead of the inelegant:
 
   @children = @{$h->content || []};
 
-If you do use $h->content, you should not use the reference returned
-by it (assuming it returned a reference, and not undef) to directly
-set or change the content of an element!  Instead use any of the other
+If you do use $h->content (or $h->content_array_ref), you should not
+use the reference returned by it (assuming it returned a reference,
+and not undef) to directly set or change the content of an element or
+text segment!  Instead use C<content_refs_list> or any of the other
 methods under "Structure-Modifying Methods", below.
 
 =cut
@@ -417,6 +417,55 @@ methods under "Structure-Modifying Methods", below.
 sub content
 {
     shift->{'_content'};
+}
+
+
+=item $h->content_array_ref()
+
+This is like C<content> (with all its caveats and deprecations) except
+that it is guaranteed to return an array reference.  That is, if the
+given node has no C<_content> attribute, the C<content> method would
+return that undef, but C<content_array_ref> would set the given node's
+C<_content> value to C<[]> (a reference to a new, empty array), and
+return that.
+
+=cut
+
+sub content_array_ref {
+  shift->{'_content'} ||= [];
+}
+
+
+=item $h->content_refs_list
+
+This returns a list of scalar references to each element of $h's
+content list.  This is useful in case you want to in-place edit any
+large text segments without having to get a copy of the current value
+of that segment value, modify that copy, then use the
+C<splice_content> to replace the old with the new.  Instead, here you
+can in-place edit:
+
+  foreach my $item_r ($h->content_refs_list) {
+    next if ref $$item_r;
+    $$item_r =~ s/honour/honor/g;
+  }
+
+You I<could> currently achieve the same affect with:
+
+  foreach my $item ($h->content_array_ref) {
+   # deprecated!
+    next if ref $item;
+    $item =~ s/honour/honor/g;
+  }
+
+...except that using the return value of $h->content or
+$h->content_array_ref to do that is deprecated, and just might stop
+working in the future.
+
+=cut
+
+sub content_refs_list {
+  \( @{ shift->{'_content'} || return() } );
 }
 
 
@@ -478,11 +527,15 @@ sub pos
 =item $h->all_attr()
 
 Returns all this element's attributes and values, as key-value pairs.
-This will include some "internal" attributes (i.e., ones not present
+This will include any "internal" attributes (i.e., ones not present
 in the original element, and which will not be represented if/when you
 call $h->as_HTML).  Internal attributes are distinguished by the fact
-that the first character of their key (not value, key!) is an
+that the first character of their key (not value! key!) is an
 underscore ("_").
+
+Example output of C<$h-E<gt>all_attr()> :
+C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
+'_content', >I<[array-ref value]>.
 
 =cut
 
@@ -505,8 +558,8 @@ sub all_external_attr {
   my $self = $_[0];
   return
     map(
-	(length($_) && substr($_,0,1) ne '_') ? ($self->{$_}) : (),
-	keys %$self
+        (length($_) && substr($_,0,1) eq '_') ? () : ($self->{$_}),
+        keys %$self
        );
 }
 
@@ -553,7 +606,7 @@ as in:
 Similarly, if you wanted to add 'Skronk' to the beginning of
 the content list, calling this:
 
-   $h->push_content('Skronk');
+   $h->unshift_content('Skronk');
 
 then the resulting content list will be this:
 
@@ -885,6 +938,7 @@ sub delete
      if $self->{'_content'} && @{$self->{'_content'}};
     
     $self->detach if $self->{'_parent'} and $self->{'_parent'}{'_content'};
+     # not the typical case
 
     %$self = (); # null out the whole object on the way out
     return undef;
@@ -974,23 +1028,23 @@ sub normalize_content {
   for(my $i = 0; $i < @$c; ++$i) {
     if(defined $c->[$i] and ref $c->[$i]) { # not a text segment
       if($stretches[0]) {
-	# put in a barrier
-	if($stretches[0][1] == 1) {
-	  #print "Nixing stretch at ", $i-1, "\n";
-	  undef $stretches[0]; # nix the previous one-node "stretch"
-	} else {
-	  #print "End of stretch at ", $i-1, "\n";
-	  unshift @stretches, undef
-	}
+        # put in a barrier
+        if($stretches[0][1] == 1) {
+          #print "Nixing stretch at ", $i-1, "\n";
+          undef $stretches[0]; # nix the previous one-node "stretch"
+        } else {
+          #print "End of stretch at ", $i-1, "\n";
+          unshift @stretches, undef
+        }
       }
       # else no need for a barrier
     } else { # text segment
       $c->[$i] = '' unless defined $c->[$i];
       if($stretches[0]) {
-	++$stretches[0][1]; # increase length
+        ++$stretches[0][1]; # increase length
       } else {
-	#print "New stretch at $i\n";
-	unshift @stretches, [$i,1]; # start and length
+        #print "New stretch at $i\n";
+        unshift @stretches, [$i,1]; # start and length
       }
     }
   }
@@ -1001,7 +1055,7 @@ sub normalize_content {
     if($s and $s->[1] > 1) {
       #print "Stretch at ", $s->[0], " for ", $s->[1], "\n";
       $c->[$s->[0]] .= join('', splice(@$c, $s->[0] + 1, $s->[1] - 1))
-	# append the subsequent ones onto the first one.
+        # append the subsequent ones onto the first one.
     }
   }
   return;
@@ -1471,6 +1525,9 @@ the compiler will not complain.
 since by then the recursion has already happened.)
 If this is returned by a pre-order callback, no
 post-order callback for the current node will happen.
+(Recall that if your callback exits with just C<return;>,
+it is returning undef -- at least in scalar context, and
+C<traverse> always calls your callbacks in scalar context.)
 
 =item HTML::Element::ABORT
 
@@ -1499,11 +1556,16 @@ other methods in this class are basically calls to traverse() with
 particular arguments.)
 
 The source code for HTML::Element and HTML::TreeBuilder contain
-many examples of the use of the "traverse" method to gather
+several examples of the use of the "traverse" method to gather
 information about the content of trees and subtrees.
 
 (Note: you should not change the structure of a tree I<while> you are
 traversing it.)
+
+(Note also that the existence of the C<traverse> method doesn't mean
+you can't write your own recursive subs to traverse the tree.
+Sometimes using C<traverse> makes for clearer code, and sometimes it
+doesn't.)
 
 =cut
 #'
@@ -1536,6 +1598,9 @@ traversing it.)
 my $NIL = [];
 sub traverse {
   my($start, $callback, $ignore_text) = @_;
+
+  Carp::croak "traverse can be called only as an object method"
+   unless ref $start;
   
   Carp::croak('must provide a callback for traverse()!')
    unless defined $callback and ref $callback;
@@ -1787,13 +1852,103 @@ sub pindex {
 
   my $parent = $self->{'_parent'} || return undef;
   my $pc =  $parent->{'_content'} || return undef;
-  my $i = 0;
   for(my $i = 0; $i < @$pc; ++$i) {
     return $i  if  ref $pc->[$i] and $pc->[$i] eq $self;
   }
   return undef; # we shouldn't ever get here
 }
 
+#--------------------------------------------------------------------------
+
+=item $h->left()
+
+In scalar context: returns the node that's the immediate left sibling
+of $h.  If $h is the leftmost (or only) child of its parent (or has no
+parent), then this returns undef.
+
+In list context: returns all the nodes that're the left siblings of $h
+(starting with the leftmost).  If $h is the leftmost (or only) child
+of its parent (or has no parent), then this returns empty-list.
+
+(See also $h->preinsert(LIST).)
+
+=cut
+
+sub left {
+  Carp::croak "left() is supposed to be an object method"
+   unless ref $_[0];
+  my $pc =
+    (
+     $_[0]->{'_parent'} || return
+    )->{'_content'} || die "parent is childless?";
+
+  die "parent is childless" unless @$pc;
+  return if @$pc == 1; # I'm an only child
+
+  if(wantarray) {
+    my @out;
+    foreach my $j (@$pc) {
+      return @out if ref $j and $j eq $_[0];
+      push @out, $j;
+    }
+  } else {
+    for(my $i = 0; $i < @$pc; ++$i) {
+      return $i ? undef : $pc->[$i - 1]
+       if ref $pc->[$i] and $pc->[$i] eq $_[0];
+    }
+  }
+
+  die "I'm not in my parent's content list?";
+  return;
+}
+
+=item $h->right()
+
+In scalar context: returns the node that's the immediate right sibling
+of $h.  If $h is the rightmost (or only) child of its parent (or has
+no parent), then this returns undef.
+
+In list context: returns all the nodes that're the right siblings of
+$h, strting with the leftmost.  If $h is the rightmost (or only) child
+of its parent (or has no parent), then this returns empty-list.
+
+(See also $h->postinsert(LIST).)
+
+=cut
+
+sub right {
+  Carp::croak "right() is supposed to be an object method"
+   unless ref $_[0];
+  my $pc =
+    (
+     $_[0]->{'_parent'} || return
+    )->{'_content'} || die "parent is childless?";
+
+  die "parent is childless" unless @$pc;
+  return if @$pc == 1; # I'm an only child
+
+  if(wantarray) {
+    my(@out, $seen);
+    foreach my $j (@$pc) {
+      if($seen) {
+        push @out, $j;
+      } else {
+        $seen = 1 if ref $j and $j eq $_[0];
+      }
+    }
+    die "I'm not in my parent's content list?" unless $seen;
+    return @out;
+  } else {
+    for(my $i = 0; $i < @$pc; ++$i) {
+      return +($i == $#$pc) ? undef : $pc->[$i+1]
+       if ref $pc->[$i] and $pc->[$i] eq $_[0];
+    }
+    die "I'm not in my parent's content list?";
+    return;
+  }
+}
+
+#--------------------------------------------------------------------------
 
 =item $h->address()
 
@@ -1819,6 +1974,11 @@ the address is resolved starting from $h->root.)
 
 If there is no node at the given address, this returns undef.
 
+You can specify "relative addressing" (i.e., that indexing is supposed
+to start from $h and not from $h->root) by having the address start
+with a period -- e.g., $h->address(".3.2") will look at child 3 of $h,
+and child 2 of that.
+
 =cut
 
 sub address {
@@ -1834,9 +1994,17 @@ sub address {
       )
     ;
   } else { # get-node-at-address
-    my $here = $_[0]->root;
     my @stack = split(/\./, $_[1]);
-    return undef unless 0 == shift @stack; # to pop the initial 0-for-root
+    my $here;
+
+    if(@stack and !length $stack[0]) { # relative addressing
+      $here = $_[0];
+      shift @stack;
+    } else { # absolute addressing
+      return undef unless 0 == shift @stack; # to pop the initial 0-for-root
+      $here = $_[0]->root;
+    }
+
     while(@stack) {
       return undef
        unless
@@ -1985,40 +2153,30 @@ none.
 
 =cut
 
-
 sub find_by_tag_name {
-  my($self) = shift;
+  my(@todo) = shift(@_); # start out the to-do stack for the traverser
+  Carp::croak "find_by_tag_name can be called only as an object method"
+   unless ref $todo[0];
   return() unless @_;
-  my @tags = map lc($_), @_;
-  my $wantarray = wantarray;
-  
-  my @matching;
-  $self->traverse(
-    [ # pre-order only
-      sub {
-        foreach my $t (@tags) {
-          if($t eq $_[0]{'_tag'}) {
-            push @matching, $_[0];
-            return HTML::Element::ABORT unless $wantarray; # only take the first
-            last; # found it.
-          }
+  my(@tags) = map lc($_), @_;
+  my(@matching, $this, $this_tag);
+  while(@todo) {
+    $this_tag = ($this = shift @todo)->{'_tag'};
+    foreach my $t (@tags) {
+      if($t eq $this_tag) {
+        if(wantarray) {
+          push @matching, $this;
+          last;
+        } else {
+          return $this;
         }
-        1; # keep traversing
-      },
-      undef  # no post
-    ],
-    1, # yes, ignore text nodes.
-  );
-
-  if($wantarray) {
-    return @matching;
-  } else {
-    return undef unless @matching;
-    return $matching[0];
+      }
+    }
+    unshift @todo, grep ref($_), @{$this->{'_content'} || next};
   }
+  return @matching if wantarray;
+  return;
 }
-
-
 
 =item $h->find_by_attribute('attribute', 'value')
 
@@ -2027,9 +2185,11 @@ the specified attribute, and have the given value for that attribute.
 In a scalar context, returns the first (in pre-order traversal of the
 tree) such element found, or undef if none.
 
+This method is B<deprecated> in favor of the more expressive
+C<look_down> method, which new code should use instead.
+
 =cut
 
-#TODO: make it take multiple attributes, and AND and OR them.
 
 sub find_by_attribute {
   # We could limit this to non-internal attributes, but hey.
@@ -2064,6 +2224,228 @@ sub find_by_attribute {
   }
 }
 
+#--------------------------------------------------------------------------
+
+=item $h->look_down( ...criteria... )
+
+This starts at $h and looks thru its element descendants (in
+pre-order), looking for elements matching the criteria you specify.
+In list context, returns all elements that match all the given
+criteria; in scalar context, returns the first such element (or undef,
+if nothing matched).
+
+There are two kinds of criteria you can specify:
+
+=over
+
+=item (attr_name, attr_value)
+
+This means you're looking for an element with that value for that
+attribute.  Example: C<"alt", "pix!">.  Consider that you can search
+on internal attribute values too: C<"_tag", "p">.
+
+=item a coderef
+
+This means you're looking for elements where coderef->(each_element)
+returns true.  Example:
+
+  my @wide_pix_images
+    = $h->look_down(
+                    "_tag", "img",
+                    "alt", "pix!",
+                    sub { $_[0]->attr('width') > 350 }
+                   );
+
+=back
+
+Note that C<(attr_name, attr_value)> criteria are faster than coderef
+criteria, so should presumably be put before them in your list of
+criteria.  That is, in the example above, the sub ref is called only
+for elements that have already passed the criteria of having a "_tag"
+attribute with value "img", and an "alt" attribute with value "pix!".
+If the coderef were first, it would be called on every element, and
+I<then> what elements pass that criterion (i.e., elements for which
+the coderef returned true) would be checked for their "_tag" and "alt"
+attributes.
+
+Note that comparison of string attribute-values against the string
+value in C<(attr_name, attr_value)> is case-INsensitive!  A criterion
+of C<('align', 'right')> I<will> match an element whose "align" value
+is "RIGHT", or "right" or "rIGhT", etc.
+
+Note also that C<look_down> considers "" (empty-string) and undef to
+be different things, in attribute values.  So this:
+
+  $h->look_down("alt", "")
+
+will find elements I<with> an "alt" attribute, but where the value for
+the "alt" attribute is "".  But this:
+
+  $h->look_down("alt", undef)
+
+is the same as:
+
+  $h->look_down(sub { !defined($_[0]->attr('alt')) } )
+
+That is, it finds elements that do not have an "alt" attribute at all
+(or that do have an "alt" attribute, but with a value of undef --
+which is not normally possible).
+
+Note that when you give several criteria, this is taken to mean you're
+looking for elements that match I<all> your criterion, not just I<any>
+of them.  In other words, there is an implicit "and", not an "or".  So
+if you wanted to express that you wanted to find elements with a
+"name" attribute with the value "foo" I<or> with an "id" attribute
+with the value "baz", you'd have to do it like:
+
+  @them = $h->look_down(
+    sub {
+      # the lcs are to fold case
+      lc($_[0]->attr('name')) eq 'foo'
+      or lc($_[0]->attr('id')) eq 'baz'
+    }
+  );
+
+Coderef criteria are more expressive than C<(attr_name, attr_value)>
+criteria, and all C<(attr_name, attr_value)> criteria could be
+expressed in terms of coderefs.  However, C<(attr_name, attr_value)>
+criteria are a convenient shorthand.  (In fact, C<look_down> itself is
+basically "shorthand" too, since anything you can do with C<look_down>
+you could do by traversing the tree, either with the C<traverse>
+method or with a routine of your own.  However, C<look_down> often
+makes for very concise and clear code.)
+
+=cut
+
+my $nillio = [];
+sub look_down {
+  ref($_[0]) or Carp::croak "look_down works only as an object method";
+
+  my @criteria;
+  for(my $i = 1; $i < @_;) {
+    Carp::croak "Can't use undef as an attribute name" unless defined $_[$i];
+    if(ref $_[$i]) {
+      Carp::croak "A " . ref($_[$i]) . " value is not a criterion"
+        unless ref $_[$i] eq 'CODE';
+      push @criteria, $_[ $i++ ];
+    } else {
+      push @criteria, [ lc($_[$i]), 
+                        defined($_[$i+1])
+                          ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
+                          : undef
+                      ];
+      $i += 2;
+    }
+  }
+  Carp::croak "No criteria?" unless @criteria;
+
+  my(@todo) = ($_[0]);
+  my(@matching, $val, $this);
+ Node:
+  while(defined($this = shift @todo)) {
+    # Yet another traverser implemented with merely iterative code.
+    foreach my $c (@criteria) {
+      if(ref($c) eq 'CODE') {
+        next Node unless $c->($this);  # jump to the continue block
+      } else { # it's an attr-value pair
+        next Node  # jump to the continue block
+          if # two values are unequal if:
+            (defined($val = $this->{ $c->[0] }))
+              ? (
+                  !defined $c->[1]  # actual is def, critval is undef => fail
+                  or ref $val ne $c->[2]
+                   # have unequal ref values => fail
+                  or lc($val) ne $c->[1]
+                   # have unequal lc string values => fail
+                )
+              : (defined $c->[1]) # actual is undef, critval is def => fail
+      }
+    }
+    # We make it this far only if all the criteria passed.
+    return $this unless wantarray;
+    push @matching, $this;
+  } continue {
+    unshift @todo, grep ref($_), @{$this->{'_content'} || $nillio};
+  }
+  return @matching if wantarray;
+  return;
+}
+
+
+=item $h->look_up( ...criteria... )
+
+This is identical to $h->look_down, except that whereas $h->look_down
+basically scans over the list:
+
+   ($h, $h->descendants)
+
+$h->look_up instead scans over the list
+
+   ($h, $h->lineage)
+
+So, for example, this returns all ancestors of $h (possibly including
+$h itself) that are "td" elements with an "align" attribute with a
+value of "right" (or "RIGHT", etc.):
+
+   $h->look_up("_tag", "td", "align", "right");
+
+=cut
+
+sub look_up {
+  ref($_[0]) or Carp::croak "look_up works only as an object method";
+
+  my @criteria;
+  for(my $i = 1; $i < @_;) {
+    Carp::croak "Can't use undef as an attribute name" unless defined $_[$i];
+    if(ref $_[$i]) {
+      Carp::croak "A " . ref($_[$i]) . " value is not a criterion"
+        unless ref $_[$i] eq 'CODE';
+      push @criteria, $_[ $i++ ];
+    } else {
+      push @criteria, [ lc($_[$i]), 
+                        defined($_[$i+1])
+                          ? ( lc( $_[$i+1] ), ref( $_[$i+1] ) )
+                          : undef
+                      ];
+      $i += 2;
+    }
+  }
+  Carp::croak "No criteria?" unless @criteria;
+
+  my(@matching, $val);
+  my $this = $_[0];
+ Node:
+  while(1) {
+    # You'll notice that the code here is almost the same as for look_down.
+    foreach my $c (@criteria) {
+      if(ref($c) eq 'CODE') {
+        next Node unless $c->($this);  # jump to the continue block
+      } else { # it's an attr-value pair
+        next Node  # jump to the continue block
+          if # two values are unequal if:
+            (defined($val = $this->{ $c->[0] }))
+              ? (
+                  !defined $c->[1]  # actual is def, critval is undef => fail
+                  or ref $val ne $c->[2]
+                   # have unequal ref values => fail
+                  or lc($val) ne $c->[1]
+                   # have unequal lc string values => fail
+                )
+              : (defined $c->[1]) # actual is undef, critval is def => fail
+      }
+    }
+    # We make it this far only if all the criteria passed.
+    return $this unless wantarray;
+    push @matching, $this;
+  } continue {
+    last unless defined($this = $this->{'_parent'}) and ref $this;
+  }
+
+  return @matching if wantarray;
+  return;
+}
+
+#--------------------------------------------------------------------------
 
 
 =item $h->attr_get_i('attribute')

@@ -1,4 +1,28 @@
-# Time-stamp: "2000-05-18 23:42:24 MDT"
+# Time-stamp: "2000-06-12 02:00:08 MDT"
+
+2000-06-12   Sean M. Burke  <sburke@cpan.org>
+
+   Release 0.67.  Just changes to HTML::Element...
+
+   Introduced look_up and look_down.  Thanks to the folks on the
+   libwww list for helping me find the right form for that idea.
+   Deprecated find_by_attribute
+
+   Doc typo fixed: at one point in the discussion of "consolidating
+   text", I said push_content('Skronk') when I meant
+   unshift_content('Skronk').  Thanks to Richard Y. Kim (ryk@coho.net)
+   for pointing this out.
+
+   Added left() and right() methods.
+
+   Made address([address]) accept relative addresses (".3.0.1")
+
+   Added content_array_ref and content_refs_list.
+
+   Added a bit more clarification to bits of the Element docs here and there.
+
+   Made find_by_tag_name work iteratively now, for speed.
+
 
 2000-05-18   Sean M. Burke  <sburke@cpan.org>
 
