@@ -1,12 +1,24 @@
 
-require 5; # -*-Text-*- Time-stamp: "2001-03-10 21:16:08 MST"
+require 5; # -*-Text-*- Time-stamp: "2001-03-14 20:11:56 MST"
 package HTML::Tree;
-$VERSION = $VERSION = 3.10;
+$VERSION = $VERSION = 3.11;
   # This is where the dist gets its version from.
 
-# Basically a happy alias to HTML::TreeBuilder
+# Basically just a happy alias to HTML::TreeBuilder
 use HTML::TreeBuilder ();
-sub new { shift; HTML::TreeBuilder->new(@_); }
+
+sub new {
+  shift; unshift @_, 'HTML::TreeBuilder';
+  goto &HTML::TreeBuilder::new;
+}
+sub new_from_file {
+  shift; unshift @_, 'HTML::TreeBuilder';
+  goto &HTML::TreeBuilder::new_from_file;
+}
+sub new_from_content {
+  shift; unshift @_, 'HTML::TreeBuilder';
+  goto &HTML::TreeBuilder::new_from_content;
+}
 
 1;  
 
@@ -14,7 +26,7 @@ __END__
 
 =head1 NAME
 
-HTML-Tree - overview of HTML::TreeBuilder et al
+HTML::Tree - overview of HTML::TreeBuilder et al
 
 =head1 SYNOPSIS
 

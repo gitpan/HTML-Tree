@@ -1,5 +1,5 @@
 
-#Time-stamp: "2001-02-23 20:09:00 MST" -*-Text-*-
+#Time-stamp: "2001-03-10 23:19:11 MST" -*-Text-*-
 # This document contains text in Perl "POD" format.
 # Use a POD viewer like perldoc or perlman to render it.
 
@@ -32,8 +32,6 @@ HTML trees.
 The CPAN module HTML::TreeBuilder takes the
 tags that HTML::Parser picks out, and builds a parse tree -- a
 tree-shaped network of objects...
-
-TODO:get the TPJ18 article POD.  Call it HTML::Tree::AboutTrees.pm?
 
 =over
 

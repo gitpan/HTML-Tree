@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2001-03-10 22:56:34 MST"
+# Time-stamp: "2001-03-14 20:11:48 MST"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
@@ -12,7 +12,7 @@ package HTML::TreeBuilder;
 use strict;
 use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.10';
+$VERSION = '3.11';
 
 # TODO: thank whoever pointed out the TEXTAREA bug
 # TODO: make require Parser of at least version... 2.27?
@@ -80,13 +80,39 @@ use HTML::Parser ();
 *HTML::TreeBuilder::p_closure_barriers = \@HTML::Tagset::p_closure_barriers;
 
 #==========================================================================
+# Two little shortcut constructors:
+
+sub new_from_file { # or from a FH
+  my $class = shift;
+  require Carp, Carp::croak("new_from_file takes only one argument")
+   unless @_ == 1;
+  require Carp, Carp::croak("new_from_file is a class method only")
+   if ref $class;
+  my $new = $class->new();
+  $new->parse_file($_[0]);
+  return $new;
+}
+
+sub new_from_content { # from any number of scalars
+  my $class = shift;
+  require Carp, Carp::croak("new_from_content is a class method only")
+   if ref $class;
+  my $new = $class->new();
+  foreach my $whunk (@_) {
+    $new->parse($whunk);
+    last if $new->{'_stunted'}; # might as well check that.
+  }
+  $new->eof();
+  return $new;
+}
+
+#---------------------------------------------------------------------------
 
 sub new { # constructor!
   my $class = shift;
   $class = ref($class) || $class;
 
   my $self = HTML::Element->new('html');  # Initialize HTML::Element part
-
   {
     # A hack for certain strange versions of Parser:
     my $other_self = HTML::Parser->new();
@@ -107,6 +133,8 @@ sub new { # constructor!
 
   $self->{'_tighten'} = 1;
     # whether ignorable WS in this tree should be deleted
+
+  $self->{'_implicit'} = 1;  # to delete, once we find a real open-"html" tag
 
   $self->{'_element_class'}      = 'HTML::Element';
   $self->{'_ignore_unknown'}     = 1;
@@ -551,11 +579,18 @@ sub warning {
           # otherwise it'll be under the noframes already
         and !$self->is_inside('body')
       ) {
+	# The following is a bit of a hack.  We don't use the normal
+        #  insert_element because 1) we don't want it as _pos, but instead
+        #  right under $self, and 2), more importantly, that we don't want
+        #  this inserted at the /end/ of $self's content_list, but instead
+        #  in the middle of it, specifiaclly right before the body element.
+        #
         my $c = $self->{'_content'} || die "Contentless root?";
         my $body = $self->{'_body'} || die "Where'd my BODY go?";
         for(my $i = 0; $i < @$c; ++$i) {
           if($c->[$i] eq $body) {
             splice(@$c, $i, 0, $self->{'_pos'} = $pos = $e);
+	    $e->{'_parent'} = $self;
             $already_inserted = 1;
             print $indent, " * inserting 'frameset' right before BODY.\n"
              if DEBUG > 1;
@@ -1325,7 +1360,7 @@ sub elementify {
     and $_ ne '_implicit' and $_ ne '_pos'
     and $_ ne '_element_class'
   } keys %$self };
-  bless $self, $to_class;
+  bless $self, $to_class;   # Returns the same object we were fed
 }
 
 
@@ -1367,6 +1402,9 @@ $tree->parse($document_content) and $tree->eof if you've got
 the content in a string) to parse the HTML
 document into the tree $tree.
 
+(You can combine steps 1 and 2 with the "new_from_file" or
+"new_from_content" methods.)
+
 2b. call $root-E<gt>elementify() if you want.
 
 3. do whatever you need to do with the syntax tree, presumably
@@ -1398,6 +1436,25 @@ option on, and $root->implicit_tags(0) turns it off.
 
 =over 4
 
+=item $root = HTML::TreeBuilder->new_from_file(...)
+
+This "shortcut" constructor merely combines constructing a new object
+(with the "new" method, below), and calling $new->parse_file(...) on
+it.  Returns the new object.  Note that this provides no way of
+setting any parse options like store_comments (for that, call new, and
+then set options, before calling parse_file).  See the notes (below)
+on parameters to parse_file.
+
+=item $root = HTML::TreeBuilder->new_from_content(...)
+
+This "shortcut" constructor merely combines constructing a new object
+(with the "new" method, below), and calling for(...){$new->parse($_)}
+and $new->eof on it.  Returns the new object.  Note that this provides
+no way of setting any parse options like store_comments (for that,
+call new, and then set options, before calling parse_file).  Example
+usages: HTML::TreeBuilder->new_from_content(@lines), or
+HTML::TreeBuilder->new_from_content($content)
+
 =item $root = HTML::TreeBuilder->new()
 
 This creates a new HTML::TreeBuilder object.  This method takes no
@@ -1406,7 +1463,11 @@ attributes.
 =item $root->parse_file(...)
 
 [An important method inherited from L<HTML::Parser|HTML::Parser>, which
-see.]
+see.  Current versions of HTML::Parser can take a filespec, or a
+filehandle object, like *FOO, or some object from class IO::Handle,
+IO::File, IO::Socket) or the like.
+I think you should check that a given file exists I<before> calling 
+$root->parse_file($filespec).]
 
 =item $root->parse(...)
 
@@ -1432,7 +1493,7 @@ see.]
 
 This changes the class of the object in $root from
 HTML::TreeBuilder to the class used for all the rest of the elements
-in that tree (generally HTML::Element).
+in that tree (generally HTML::Element).  Returns $root.
 
 For most purposes, this is unnecessary, but if you call this after
 you're finished building a tree, then it keeps you from accidentally
