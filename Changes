@@ -1,13 +1,22 @@
-# Time-stamp: "2002-11-23 00:00:49 MST"
+# Time-stamp: "2003-01-18 19:14:00 AHST"
+
+2003-01-18   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.17 -- minor bugfix
+
+   HTML::Element : Making as_HTML('',...) work just like
+   as_HTML(undef,...).  Also fixing as_XML's docs to remove mention of
+   an unimplemented feature (specifying what characters to escape).
+
 
 2002-11-06   Sean M. Burke <sburke@cpan.org>
 
-   Release 3.16 -- just fiking fixing a doc typo.
+   Release 3.16 -- just fixing a doc typo.
 
 
 2002-11-06   Sean M. Burke <sburke@cpan.org>
 
-   Release 3.15 -- e few new features.
+   Release 3.15 -- a few new features.
 
    Added the aliases "descendents" and "find" to HTML::Element.
 
@@ -19,7 +28,6 @@
 
    Just fixes a few problems in HTML::Element with the number_lists
    method.
-
 
 
 2002-08-16   Sean M. Burke <sburke@cpan.org>

@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2002-11-22 23:57:04 MST"
+# Time-stamp: "2003-01-18 19:08:59 AHST"
 package HTML::Element;
 # TODO: make as_* understand ~text items
 # TODO: make extract_links do the right thing with forms with no action param ?
@@ -154,7 +154,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.15';
+$VERSION = '3.16';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -1495,7 +1495,9 @@ sub as_HTML {
   my($self, $entities, $indent, $omissible_map) = @_;
   #my $indent_on = defined($indent) && length($indent);
   my @html = ();
-  
+
+  undef($entities) unless defined($entities) and length($entities);
+
   $omissible_map ||= \%HTML::Element::optionalEndTag;
   my $empty_element_map = $self->_empty_element_map;
 
@@ -1683,9 +1685,6 @@ sub as_text_trimmed { shift->as_trimmed_text(@_) } # alias, because I forget
 =item $h->as_XML()
 
 Returns a string representing in XML the element and its descendants.
-The optional argument C<$entities> specifies a string of the entities
-to encode.  If omitted or undef, I<all> unsafe characters are encoded
-as numeric XML entities.
 
 This method is experimental.  If you use this method, tell me what you
 use it for, and if you run into any problems.
