@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-10-15 22:13:39 MDT"
+# Time-stamp: "2000-10-20 20:40:09 MDT"
 package HTML::Element;
 # TODO: add pre-content-fixer, like from Pod::HTML2Pod?
 # TODO: make extract_links do the right thing with forms with no action param ?
@@ -149,7 +149,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug $ID_COUNTER);
 
-$VERSION = '3.06';
+$VERSION = '3.07';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -715,7 +715,21 @@ by adding or changing nodes as parents or children of other nodes.
 
 Adds the specified items to the I<end> of the content list of the
 element $h.  The items of content to be added should each be either a
-text segment (a string) or an HTML::Element object.
+text segment (a string), an HTML::Element object, or an arrayref.
+Arrayrefs are fed thru C<$h-E<gh>new_from_lol(that_arrayref)> to
+convert them into elements, before being added to the content
+list of $h.  This means you can say things concise things like:
+
+  $body->push_content(
+    ['br'],
+    ['ul',
+      map ['li', $_]
+      qw(Peaches Apples Pears Mangos)
+    ]
+  );
+
+See C<new_from_lol> method's documentation, far below, for more
+explanation.
 
 The push_content method will try to consolidate adjacent text segments
 while adding to the content list.  That's to say, if $h's content_list is
@@ -766,7 +780,10 @@ sub push_content
 
     my $content = ($self->{'_content'} ||= []);
     for (@_) {
-        if (ref $_) {  # insert an element
+        if (ref($_) eq 'ARRAY') {
+            # magically call new_from_lol
+            push @$content, $self->new_from_lol($_);
+        } elsif(ref($_)) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
             push(@$content, $_);
@@ -785,9 +802,12 @@ sub push_content
 
 =item $h->unshift_content($element_or_text, ...)
 
-Adds the specified items to the I<beginning> of the content list of
-the element $h.  The items of content to be added should each be
-either a text segment (a string) or an HTML::Element object.
+Just like C<push_content>, but adds to the C<beginning> of the $h
+element's content list.
+
+The items of content to be added should each be
+either a text segment (a string), an HTML::Element object, or
+an arrayref (which is fed thru C<new_from_lol>).
 
 The unshift_content method will try to consolidate adjacent text segments
 while adding to the content list.  See above for a discussion of this.
@@ -801,7 +821,10 @@ sub unshift_content
 
     my $content = ($self->{'_content'} ||= []);
     for (reverse @_) { # so they get added in the order specified
-        if (ref $_) {  # insert an element
+        if (ref($_) eq 'ARRAY') {
+            # magically call new_from_lol
+            unshift @$content, $self->new_from_lol($_);
+        } elsif (ref $_) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
             unshift(@$content, $_);
@@ -830,7 +853,8 @@ function.  If $length and the following list is omitted, removes
 everything from $offset onward.
 
 The items of content to be added (if any) should each be either a text
-segment (a string), or an HTML::Element object that's not already
+segment (a string), an arrayref (which is fed thru C<new_from_lol>),
+or an HTML::Element object that's not already
 a child of $h.
 
 =cut
@@ -848,7 +872,10 @@ sub splice_content {
     my @out;
     if(@_ > 2) {  # self, offset, length, ...
       foreach my $n (@to_add) {
-        if(ref($n)) {
+        if(ref($n) eq 'ARRAY') {
+          $n = $self->new_from_lol($n);
+          $n->{'_parent'} = $self;
+        } elsif(ref($n)) {
           $n->detach;
           $n->{'_parent'} = $self;
         }
@@ -1688,7 +1715,7 @@ sub as_Lisp_form {
     for (sort keys %$self) { # predictable ordering
       next if $_ eq '_content' or $_ eq '_tag' or $_ eq '_parent' or $_ eq '/';
        # Leave the other private attributes, I guess.
-      push @list, $_, $val if defined($val = $self->{$_}) and !ref $val;
+      push @list, $_, $val if defined($val = $self->{$_}); # and !ref $val;
     }
     
     for (@list) {
@@ -1803,7 +1830,7 @@ sub starttag
     for (sort keys %$self) { # predictable ordering
         next if !length $_ or m/^_/s or $_ eq '/';
         $val = $self->{$_};
-        next if !defined $val or ref $val;
+        next if !defined $val; # or ref $val;
         if ($_ eq $val &&   # if attribute is boolean, for this element
             exists($HTML::Element::boolean_attr{$name}) &&
             (ref($HTML::Element::boolean_attr{$name})
@@ -1856,7 +1883,7 @@ sub starttag_XML
         next if !length $_ or  m/^_/s or $_ eq '/';
         # Hm -- what to do if val is undef?
         # I suppose that shouldn't ever happen.
-        next if !defined($val = $self->{$_}) or ref $val;
+        next if !defined($val = $self->{$_}); # or ref $val;
         HTML::Entities::encode_entities($val, $entities);
         $tag .= qq{ $_="$val"};
     }
@@ -3079,15 +3106,43 @@ sub same_as {
 Resursively constructs a tree of nodes, based on the (non-cyclic)
 data structure represented by ARRAYREF, where that is a reference
 to an array of arrays (of arrays (of arrays (etc.))).
-In each arrayref in that structure:  arrayrefs are considered to
+
+In each arrayref in that structure, different kinds of values are
+treated as follows:
+
+=over
+
+=item * Arrayrefs
+
+Arrayrefs are considered to
 designate a sub-tree representing children for the node constructed
-from the current arrayref; hashrefs are considered to contain
+from the current arrayref.
+
+=item * Hashrefs
+
+Hashrefs are considered to contain
 attribute-value pairs to add to the element to be constructed from
-the current arrayref; text segments at the start of any arrayref
+the current arrayref
+
+=item * Text segments
+
+Text segments at the start of any arrayref
 will be considered to specify the name of the element to be
 constructed from the current araryref; all other text segments will
 be considered to specify text segments as children for the current
 arrayref.
+
+=item * Elements
+
+Existing element objects are either inserted into the treelet
+constructed, or clones of them are.  That is, when the lol-tree is
+being traversed and elements constructed based what's in it, if
+an existing element object is found, if it has no parent, then it is
+added directly to the treelet constructed; but if it has a parent,
+then C<$that_node-E<gt>clone> is added to the treelet at the
+appropriate place.
+
+=back
 
 An example will hopefully make this more obvious:
 
@@ -3125,10 +3180,29 @@ And printing $h->as_HTML will give something like:
   <body lang="en-JP">stuff<p class="par123">um, p &lt; 4!
   <div foo="bar">123</div></body></html>
 
+You can even do fancy things with C<map>:
+
+  $body->push_content(
+    # push_content implicitly calls new_from_lol on arrayrefs...
+    ['br'],
+    ['blockquote',
+      ['h2', 'Pictures!'],
+      map ['p', $_],
+      $body2->look_down("_tag", "img"),
+        # images, to be copied from that other tree.
+    ],
+    # and more stuff:
+    ['ul',
+      map ['li', ['a', {'href'=>"$_.png"}, $_ ] ],
+      qw(Peaches Apples Pears Mangos)
+    ],
+  );
+
 =cut
 
 sub new_from_lol {
-  my $class = ref($_[0]) || $_[0]; # I /should/ be called as a class method!
+  my $class = ref($_[0]) || $_[0];
+   # calling as an object method is just the same as ref($h)->new_from_lol(...)
   my $lol = $_[1];
 
   Carp::croak "first argument to new_from_lol mustn't be undef!"
@@ -3170,19 +3244,33 @@ sub new_from_lol {
             unless $k eq '_name' or $k eq '_content' or $k eq '_parent';
           # enforce /some/ sanity!
         }
+      } elsif(UNIVERSAL::isa($lol->[$i], __PACKAGE__)) {
+        if($lol->[$i]->{'_parent'}) { # if claimed
+          #print "About to clone ", $lol->[$i], "\n";
+          push @children, $lol->[$i]->clone();
+        } else {
+          push @children, $lol->[$i]; # if unclaimed...
+          #print "Claiming ", $lol->[$i], "\n";
+          $lol->[$i]->{'_parent'} = 1; # claim it NOW
+           # This WILL be replaced by the correct value once we actually
+           #  construct the parent, just after the end of this loop...
+        }
+      } else {
+        Carp::croak "new_from_lol doesn't handle references of type "
+          . ref($lol->[$i]);
       }
-      # else...?
     }
 
     pop @ancestor_lols;
+    $node = $class->new($tag_name);
 
     #print "Children: @children\n";
 
-    $node = $class->new($tag_name); # finally construct
-
     if($class eq __PACKAGE__) {  # Special-case it, for speed:
-      #print "Special cased\n";
+      #print "Special cased / [@attributes]\n";
+      
       %$node = (%$node, @attributes) if @attributes;
+      #print join(' ', $node, ' ' , map("<$_>", %$node), "\n");
       if(@children) {
         $node->{'_content'} = \@children;
         foreach my $c (@children) { $c->{'_parent'} = $node if ref $c }

@@ -1,4 +1,20 @@
-# Time-stamp: "2000-10-15 22:10:57 MDT"
+# Time-stamp: "2000-10-20 20:08:06 MDT"
+
+2000-10-20   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.07
+
+   In Element: made new_from_lol accept existing HTML::Element objects
+   as part of the loltree.  Thanks for Bob Glickstein
+   <bobg@zanshin.com> for the suggestion.
+
+   In Element: feeding an arrayref to push_content, unshift_content,
+   or splice_content now implicitly calls new_from_lol.
+
+   In Element: reversed the change in as_HTML/XML/Lisp_form that would
+   skip dumping attributes with references for values.  It reacted
+   undesirably with objects that overload stringify; to wit, URI.pm
+   objects.
 
 2000-10-15   Sean M. Burke <sburke@cpan.org>
 
@@ -16,7 +32,7 @@
    behavior, as there's no normal way for any document to parse
    to a tree containing any such attributes.
 
-   In Element: minor typos or rewordings in the POD.
+   In Element: minor rewordings or typo-fixes in the POD.
 
 2000-10-02   Sean M. Burke <sburke@cpan.org>
 
