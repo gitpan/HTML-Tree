@@ -148,7 +148,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug);
 
-$VERSION = '3.01';
+$VERSION = '3.02';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -158,6 +158,7 @@ my $nillio = [];
 *HTML::Element::optionalEndTag = \%HTML::Tagset::optionalEndTag; # legacy
 *HTML::Element::linkElements = \%HTML::Tagset::linkElements; # legacy
 *HTML::Element::boolean_attr = \%HTML::Tagset::boolean_attr; # legacy
+*HTML::Element::canTighten = \%HTML::Tagset::canTighten; # legacy
 
 # Constants for signalling back to the traverser:
 my $travsignal_package = __PACKAGE__ . '::_travsignal';
@@ -1069,8 +1070,8 @@ sub delete_ignorable_whitespace {
   #   <input type='text' name='bar' value='2'>
   # the WS between them won't be rendered in any way, presumably.
 
-  #my $Debug =4;  
-  die "delete_ignorably_whitespace can be called only as an object method"
+  #my $Debug = 4;
+  die "delete_ignorable_whitespace can be called only as an object method"
    unless ref $_[0];
 
   print "About to tighten up...\n" if $Debug > 2;
@@ -1197,7 +1198,10 @@ sub insert_element
 
 =item $h->dump()
 
-Prints the element and all its children to STDOUT, in a format useful
+=item $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
+
+Prints the element and all its children to STDOUT (or to a specified
+filehandle), in a format useful
 only for debugging.  The structure of the document is shown by
 indentation (no end tags).
 
@@ -1205,24 +1209,25 @@ indentation (no end tags).
 
 sub dump
 {
-    my $self = shift;
-    my $depth = shift || 0;
-    print STDOUT
+    my($self, $fh, $depth) = @_;
+    $fh = *STDOUT{IO} unless defined $fh;
+    $depth = 0 unless defined $depth;
+    print $fh
       "  " x $depth,   $self->starttag,   " \@", $self->address,
       $self->{'_implicit'} ? " (IMPLICIT)\n" : "\n";
     for (@{$self->{'_content'}}) {
         if (ref $_) {  # element
-            $_->dump($depth+1);  # recurse
+            $_->dump($fh, $depth+1);  # recurse
         } else {  # text node
-            print STDOUT "  " x ($depth + 1);
+            print $fh "  " x ($depth + 1);
             if(length($_) > 65 or m<[\x00-\x1F]>) {
               # it needs prettyin' up somehow or other
               my $x = (length($_) <= 65) ? $_ : (substr($_,0,65) . '...');
               $x =~ s<([\x00-\x1F])>
                      <'\\x'.(unpack("H2",$1))>eg;
-              print STDOUT qq{"$x"\n};
+              print $fh qq{"$x"\n};
             } else {
-              print STDOUT qq{"$_"\n};
+              print $fh qq{"$_"\n};
             }
         }
     }

@@ -11,8 +11,9 @@ package HTML::TreeBuilder;
 # TODO: deprecate subclassing TreeBuilder?
 
 use strict;
+use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $Debug);
-$VERSION = '3.01';
+$VERSION = '3.02';
 $Debug = 0 unless defined $Debug;
 
 use HTML::Entities ();

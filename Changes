@@ -1,4 +1,17 @@
-# Time-stamp: "2000-08-21 00:37:58 MDT"
+# Time-stamp: "2000-08-21 13:57:22 MDT"
+
+2000-08-20   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.02
+
+   Fixed a silly typo in Element that made delete_ignorable_whitespace
+   useless.
+
+   Made Element's $tree->dump take an optional output-filehandle
+   argument.
+
+   Added (restored?) "use integer" to TreeBuilder.
+
 
 2000-08-20   Sean M. Burke <sburke@cpan.org>
 
