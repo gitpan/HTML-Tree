@@ -1,4 +1,71 @@
-# Time-stamp: "2000-09-04 15:09:29 MDT"
+# Time-stamp: "2000-10-02 15:10:24 MDT"
+
+2000-10-02   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.05
+
+   In Element: fixed typo in docs for the content_refs_list method.
+   Had:
+    foreach my $item ($h->content_array_ref) {
+   Corrected to:
+    foreach my $item (@{ $h->content_array_ref }) {
+
+   In Element: fixed bug in $h->left that made it useless in scalar
+   context.  Thanks to Toby Thurston <toby@wildfire.dircon.co.uk> for
+   spotting this.
+
+   In Element: added new method $h->tagname_map
+
+   In TreeBuilder: Some minor changes in the logic of handling TD and
+   TR elements -- basically bug fixes, in response to an astute bug
+   report from Toby Thurston <toby@wildfire.dircon.co.uk>.
+
+   In TreeBuilder: Fixed lame bug that made strict-p mode nearly
+   useless.  It may now approach usability!
+
+   This dist contains a sample utility called "htmltree" that parses
+   given HTML documents, and dumps their parse tree.  (It's not
+   actually new in this version, but was never mentioned before.)
+
+   In TreeBuilder, a change of interest only to advanced programmers
+   familiar with TreeBuilder's source and perpetually undocumented
+   features: there is no $HTML::TreeBuilder::Debug anymore.
+
+   If you want to throw TreeBuilder into Debug mode, you have to do it
+   at compile time -- by having a line like this BEFORE any line that
+   says "use HTML::TreeBuilder":
+
+      sub HTML::TreeBuilder::DEBUG () {3};
+  
+   where "5" is whatever debug level (0 for no debug output) that you
+   want TreeBuilder to be in.  All the in TreeBuilder that used to say
+
+     print "...stuff..." if $Debug > 1;
+
+   now say
+
+     print "...stuff..." if DEBUG > 1;
+
+   where DEBUG is the constant-sub whose default value set at compile
+   time is 0.  The point of this is that for the typical
+   compilation-instance of TreeBuilder will run with DEBUG = 0, and
+   having that set at compile time means that all the "print ... if
+   DEBUG" can be optimized away at compile time, so they don't appear
+   in the code tree for TreeBuilder.  This leads to a typical ~10%
+   speedup in TreeBuilder code, since it's no longer having to
+   constantly interrogate $Debug.
+
+   Note that if you really do NEED the debug level to vary at runtime,
+   say:
+     sub HTML::TreeBuilder::DEBUG () { $HTML::TreeBuilder::DEBUG };
+   and then change that variable's value as need be.  Do this only if
+   necessary, tho.
+
+   BTW, useful line to have in your ~/.cshrc:
+     alias deparse 'perl -MO=Deparse \!*'
+   I found it useful for deparsing TreeBuilder.pm to make sure that
+   the DEBUG-conditional statements really were optimized away
+   as I intended.
 
 2000-09-04   Sean M. Burke <sburke@cpan.org>
 

@@ -1,5 +1,5 @@
 #!/usr/local/bin/perl
-# Time-stamp: "1999-12-15 20:19:23 MST" sburke@netadventure.net
+# Time-stamp: "2000-10-02 14:48:15 MDT" sburke@cpan.org
 #
 # Parse the given HTML file(s) and dump the parse tree
 # Usage:
@@ -8,23 +8,28 @@
 #    -w  turns on $tree->warn(1) for the new tree
 
 require 5;
-use HTML::TreeBuilder;
 use strict;
 
-$HTML::TreeBuilder::Debug = 0; # default debug level
-my $warn = 0;
-while(@ARGV) {   # lameo switch parsing
-  if($ARGV[0] =~ m<^-D(\d+)$>s) {
-    $HTML::TreeBuilder::Debug = $1;
-    print "Debug level $HTML::TreeBuilder::Debug\n";
-    shift @ARGV;
-  } elsif ($ARGV[0] =~ m<^-w$>s) {
-    $warn = 1;
-    shift @ARGV;
-  } else {
-    last;
+my $warn;
+
+BEGIN { # We have to set debug level before we use HTML::TreeBuilder.
+  $HTML::TreeBuilder::DEBUG = 0; # default debug level
+  $warn = 0;
+  while(@ARGV) {   # lameo switch parsing
+    if($ARGV[0] =~ m<^-D(\d+)$>s) {
+      $HTML::TreeBuilder::DEBUG = $1;
+      print "Debug level $HTML::TreeBuilder::DEBUG\n";
+      shift @ARGV;
+    } elsif ($ARGV[0] =~ m<^-w$>s) {
+      $warn = 1;
+      shift @ARGV;
+    } else {
+      last;
+    }
   }
 }
+
+use HTML::TreeBuilder;
 
 foreach my $file (grep( -f $_, @ARGV)) {
   print

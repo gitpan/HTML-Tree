@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-09-04 14:39:52 MDT"
+# Time-stamp: "2000-09-29 19:57:31 MDT"
 package HTML::Element;
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
@@ -148,7 +148,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug);
 
-$VERSION = '3.04';
+$VERSION = '3.05';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -503,7 +503,7 @@ can in-place edit:
 
 You I<could> currently achieve the same affect with:
 
-  foreach my $item ($h->content_array_ref) {
+  foreach my $item (@{ $h->content_array_ref }) {
    # deprecated!
     next if ref $item;
     $item =~ s/honour/honor/g;
@@ -755,7 +755,7 @@ sub unshift_content
     $self;
 }
 
-#  splice ARRAY,OFFSET,LENGTH,LIST
+# Cf.  splice ARRAY,OFFSET,LENGTH,LIST
 
 =item $h->splice_content($offset, $length, $element_or_text, ...)
 
@@ -1951,7 +1951,7 @@ sub left {
     }
   } else {
     for(my $i = 0; $i < @$pc; ++$i) {
-      return $i ? undef : $pc->[$i - 1]
+      return $i ? $pc->[$i - 1] : undef
        if ref $pc->[$i] and $pc->[$i] eq $_[0];
     }
   }
@@ -2608,6 +2608,58 @@ sub attr_get_i {
   }
 }
 
+#--------------------------------------------------------------------------
+
+=item $h->tagname_map()
+
+Scans across C<$h> and all its descendants, and makes a hash (a
+reference to which is returned) where each entry consists of a key
+that's a tag name, and a value that's a reference to a list to all
+elements that have that tag name.  I.e., this method returns:
+
+   {
+     # Across $h and all descendants...
+     'a'   => [ ...list of all 'a'   elements... ],
+     'em'  => [ ...list of all 'em'  elements... ],
+     'img' => [ ...list of all 'img' elements... ],
+   }
+
+(There are entries in the hash for only those tagnames that occur
+at/under C<$h> -- so if there's no "img" elements, there'll be no
+"img" entry in the hashr(ref) returned.)
+
+Example usage:
+
+    my $map_r = $h->tagname_map();
+    my @heading_tags = sort grep m/^h\d$/s, keys %$map_r;
+    if(@heading_tags) {
+      print "Heading levels used: @heading_tags\n";
+    } else {
+      print "No headings.\n"
+    }
+
+=cut
+
+sub tagname_map {
+  my(@pile) = $_[0]; # start out the to-do stack for the traverser
+  Carp::croak "find_by_tag_name can be called only as an object method"
+   unless ref $pile[0];
+  my(%map, $this_tag, $this);
+  while(@pile) {
+    $this_tag = ''
+      unless defined(
+       $this_tag = (
+        $this = shift @pile
+       )->{'_tag'}
+      )
+    ; # dance around the strange case of having an undef tagname.
+    push @{ $map{$this_tag} ||= [] }, $this; # add to map
+    unshift @pile, grep ref($_), @{$this->{'_content'} || next}; # traverse
+  }
+  return \%map;
+}
+
+#--------------------------------------------------------------------------
 
 =item $h->extract_links() or $h->extract_links(@wantedTypes)
 
