@@ -1,4 +1,23 @@
-# Time-stamp: "2000-08-26 15:55:48 MDT"
+# Time-stamp: "2000-09-04 15:09:29 MDT"
+
+2000-09-04   Sean M. Burke <sburke@cpan.org>
+
+   Release 3.04
+
+   In TreeBuilder: added p_strict, an option to somewhat change
+   behavior of implicating "</p>"s.
+   Added store_comments, store_declarations, store_pis, to control
+   treatment of comments, declarations, and PIs when parsing.
+
+   In Element: documented the pseudo-elements (~comment, ~declaration,
+   ~pi, and ~literal).  Corrected as_HTML dumping of ~pi elements.
+   
+   Removed formfeeds from source of Element and TreeBuilder --
+   different editors (and Perl) treat them differently as far as
+   incrementing the line counter; so Perl might report an error on
+   line 314, but preceding formfeeds might make your editor think that
+   that line is actually 316 or something, resulting in confusion all
+   around.  Ahwell.
 
 2000-08-26   Sean M. Burke <sburke@cpan.org>
 

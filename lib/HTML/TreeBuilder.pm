@@ -1,23 +1,22 @@
 
 require 5;
-# Time-stamp: "2000-08-26 15:14:21 MDT"
+# Time-stamp: "2000-09-04 14:56:53 MDT"
 package HTML::TreeBuilder;
 #TODO: maybe have it recognize higher versions of
 # Parser, and register the methods as subs?
 # Hm, but TreeBuilder wouldn't be subclassable, then.
 
-# TODO: document _store_*, and make methods for them.
 # TODO: document tweaks?
 # TODO: deprecate subclassing TreeBuilder?
 
 use strict;
 use integer; # vroom vroom!
 use vars qw(@ISA $VERSION $Debug);
-$VERSION = '3.03';
+$VERSION = '3.04';
 $Debug = 0 unless defined $Debug;
 
 use HTML::Entities ();
-use HTML::Tagset ();
+use HTML::Tagset 3.02 ();
 
 use HTML::Element ();
 use HTML::Parser ();
@@ -28,7 +27,7 @@ use HTML::Parser ();
  #  (method calls) from Parser in order to elaborate its subtree.
 
 # Legacy aliases:
-# *HTML::TreeBuilder::isKnown = \%HTML::Tagset::isKnown;
+*HTML::TreeBuilder::isKnown = \%HTML::Tagset::isKnown;
 *HTML::TreeBuilder::canTighten = \%HTML::Tagset::canTighten;
 *HTML::TreeBuilder::isHeadElement = \%HTML::Tagset::isHeadElement;
 *HTML::TreeBuilder::isBodyElement = \%HTML::Tagset::isBodyElement;
@@ -141,10 +140,67 @@ true.  (In fact, I'd be interested in hearing if there's ever a case
 where you need this off, or where leaving it on leads to incorrect
 behavior.)
 
+=item $root->p_strict(value)
+
+If set to true (and it defaults to false), TreeBuilder will take a
+narrower than normal view of what can be under a "p" element; if it sees
+a non-phrasal element about to be inserted under a "p", it will close that
+"p".  Otherwise it will close p elements only for other "p"'s, headings,
+and "form" (altho the latter may be removed in future versions).
+
+For example, when going thru this snippet of code,
+
+  <p>stuff
+  <ul>
+
+TreeBuilder will normally (with C<p_strict> false) put the "ul" element
+under the "p" element.  However, with C<p_strict> set to true, it will
+close the "p" first.
+
+In theory, there should be strictness options like this for other/all
+elements besides just "p"; but I treat this as a specal case simply
+because of the fact that "p" occurs so frequently and its end-tag is
+omitted so often; and also because application of strictness rules
+at parse-time across all elements often makes tiny errors in HTML
+coding produce drastically bad parse-trees, in my experience.
+
+If you find that you wish you had an option like this to enforce
+content-models on all elements, then I suggest that what you want is
+content-model checking as a stage after TreeBuilder has finished
+parsing.
+
+=item $root->store_comments(value)
+
+This determines whether TreeBuilder will normally store comments found
+while parsing content into C<$root>.  Currently, this is off by default.
+
+=item $root->store_declarations(value)
+
+This determines whether TreeBuilder will normally store markup
+declarations found while parsing content into C<$root>.  Currently,
+this is off by default.
+
+It is somewhat of a known bug (to be fixed one of these days, if
+anyone needs it?) that declarations in the preamble (before the "html"
+start-tag) end up actually I<under> the "html" element.
+
+=item $root->store_pis(value)
+
+This determines whether TreeBuilder will normally store processing
+instructions found while parsing content into C<$root> -- assuming a
+recent version of HTML::Parser (old versions won't parse PIs
+correctly).  Currently, this is off (false) by default.
+
+It is somewhat of a known bug (to be fixed one of these days, if
+anyone needs it?) that PIs in the preamble (before the "html"
+start-tag) end up actually I<under> the "html" element.
+
 =item $root->warn(value)
 
 This determines whether syntax errors during parsing should generate
 warnings, emitted via Perl's C<warn> function.
+
+This is off (false) by default.
 
 =back
 
@@ -219,7 +275,7 @@ Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
 =cut
 
 #==========================================================================
-
+
 sub new { # constructor!
   my $class = shift;
   $class = ref($class) || $class;
@@ -254,7 +310,8 @@ sub new { # constructor!
   $self->{'_store_comments'}     = 0;
   $self->{'_store_pis'}          = 0;
   $self->{'_store_declarations'} = 0;
-
+  $self->{'_p_strict'} = 0;
+  
   # Parse attributes passed in as arguments
   if(@_) {
     my %attr = @_;
@@ -288,9 +345,13 @@ sub _elem # universal accessor...
 # accessors....
 sub implicit_tags  { shift->_elem('_implicit_tags',  @_); }
 sub implicit_body_p_tag  { shift->_elem('_implicit_body_p_tag',  @_); }
+sub p_strict       { shift->_elem('_p_strict',  @_); }
 sub ignore_unknown { shift->_elem('_ignore_unknown', @_); }
 sub ignore_text    { shift->_elem('_ignore_text',    @_); }
 sub ignore_ignorable_whitespace  { shift->_elem('_tighten',    @_); }
+sub store_comments { shift->_elem('_store_comments', @_); }
+sub store_declarations { shift->_elem('_store_declarations', @_); }
+sub store_pis      { shift->_elem('_store_pis', @_); }
 sub warn           { shift->_elem('_warn',           @_); }
 
 
@@ -303,7 +364,7 @@ sub warning {
 }
 
 #==========================================================================
-
+
 sub start {
     return if $_[0]{'_stunted'};
     
@@ -343,21 +404,58 @@ sub start {
      # Make a new element object.
      # (Only rarely do we end up just throwing it away later in this call.)
      
-    # Some prep -- custom messiness for those damned tables...
-    if($self->{'_implicit_tags'} and !$HTML::TreeBuilder::isTableElement{$tag}) {
-      if ($ptag eq 'table') {
-        print $indent,
-          " * Phrasal \U$tag\E right under TABLE makes an implicit TR and TD\n"
-         if $Debug > 1;
-        $self->insert_element('tr', 1);
-        $pos = $self->insert_element('td', 1); # yes, needs updating
-      } elsif ($ptag eq 'tr') {
-        print $indent,
-          " * Phrasal \U$tag\E right under TR makes an implicit TD\n"
-         if $Debug > 1;
-        $pos = $self->insert_element('td', 1); # yes, needs updating
+    # Some prep -- custom messiness for those damned tables, and strict P's.
+    if($self->{'_implicit_tags'}) {
+      
+      unless($HTML::TreeBuilder::isTableElement{$tag}) {
+        if ($ptag eq 'table') {
+          print $indent,
+            " * Phrasal \U$tag\E right under TABLE makes implicit TR and TD\n"
+           if $Debug > 1;
+          $self->insert_element('tr', 1);
+          $pos = $self->insert_element('td', 1); # yes, needs updating
+        } elsif ($ptag eq 'tr') {
+          print $indent,
+            " * Phrasal \U$tag\E right under TR makes an implicit TD\n"
+           if $Debug > 1;
+          $pos = $self->insert_element('td', 1); # yes, needs updating
+        }
+        $ptag = $pos->{'_tag'}; # yes, needs updating
       }
-      $ptag = $pos->{'_tag'}; # yes, needs updating
+       # end of table-implication block.
+      
+      
+      # Now maybe do a little dance to enforce P-strictness.
+      # This seems like it should be integrated with the big
+      # "ALL HOPE..." block, further below, but that doesn't
+      # seem feasable.
+      if(
+        $self->{'_p_strict'}
+        and $HTML::TreeBuilder::isKnown{$tag}
+        and not $HTML::Tagset::is_Possible_Strict_P_Content{$tag}
+      ) {
+        my $here = $pos;
+        my $here_tag = $ptag;
+        while(1) {
+          if($here_tag eq 'p') {
+            print $indent,
+              " * Inserting $tag closes strict P.\n" if $Debug > 1;
+            $self->end(\'p'); # '
+            last;
+          }
+          
+          #print("Lasting from $here_tag\n"),
+          last if
+            $HTML::TreeBuilder::isKnown{$here_tag}
+            and not $HTML::Tagset::is_Possible_Strict_P_Content{$here_tag};
+           # Don't keep looking up the tree if we see something that can't
+           #  be strict-P content.
+          
+          $here_tag = ($here = $here->{'_parent'} || last)->{'_tag'};
+        }
+      }
+       # end of strict-p block.
+      
     }
     
     # And now, get busy...
@@ -668,12 +766,16 @@ sub start {
               if $Debug;
         }
     }
-
+    #----------------------------------------------------------------------
+     # End of mumbo-jumbo
+    
+    
     print
       $indent, "(Attaching ", $e->{'_tag'}, " under ",
       ($self->{'_pos'} || $self)->{'_tag'}, ")\n"
         # because if _pos isn't defined, it goes under self
      if $Debug;
+    
     
     # The following if-clause is to delete /some/ ignorable whitespace
     #  nodes, as we're making the tree.
@@ -742,7 +844,7 @@ sub start {
 }
 
 #==========================================================================
-
+
 sub end {
     return if $_[0]{'_stunted'};
     
@@ -901,7 +1003,52 @@ sub end {
     print $indent, "(Pos now points to ",
       $self->{'_pos'} ? $self->{'_pos'}{'_tag'} : '???', ".)\n"
      if $Debug > 1;
-
+    
+    ### EXPENSIVE, because has to check that it's not under a pre
+    ### or a CDATA-parent.  That's one more method call per end()!
+    ### Might as well just do this at the end of the tree-parse, I guess,
+    ### at which point we'd be parsing top-down, and just not traversing
+    ### under pre's or CDATA-parents.
+    ##
+    ## Take this opportunity to nix any terminal whitespace nodes.
+    ## TODO: consider whether this (plus the logic in start(), above)
+    ## would ever leave any WS nodes in the tree.
+    ## If not, then there's no reason to have eof() call
+    ## delete_ignorable_whitespace on the tree, is there?
+    ##
+    #if(@to_close and $self->{'_tighten'} and !$self->{'_ignore_text'} and
+    #  ! $to_close[-1]->is_inside('pre', keys %HTML::Tagset::isCDATA_Parent)
+    #) {  # if tightenable
+    #  my($children, $e_tag);
+    #  foreach my $e (reverse @to_close) { # going top-down
+    #    last if 'pre' eq ($e_tag = $e->{'_tag'}) or
+    #     $HTML::Tagset::isCDATA_Parent{$e_tag};
+    #    
+    #    if(
+    #      $children = $e->{'_content'}
+    #      and @$children      # has children
+    #      and !ref($children->[-1])
+    #      and $children->[-1] =~ m<^\s+$>s # last node is all-WS
+    #      and
+    #        (
+    #         # has a tightable parent:
+    #         $HTML::TreeBuilder::canTighten{ $e_tag }
+    #         or
+    #          ( # has a tightenable left sibling:
+    #            @$children > 1 and 
+    #            ref($children->[-2])
+    #            and $HTML::TreeBuilder::canTighten{ $children->[-2]{'_tag'} }
+    #          )
+    #        )
+    #    ) {
+    #      pop @$children;
+    #      #print $indent, "Popping a terminal WS node from ", $e->{'_tag'},
+    #      #  " (", $e->address, ") while exiting.\n" if $Debug;
+    #    }
+    #  }
+    #}
+    
+    
     foreach my $e (@to_close) {
       # Call the applicable callback, if any
       $ptag = $e->{'_tag'};
@@ -916,7 +1063,7 @@ sub end {
 }
 
 #==========================================================================
-
+
 sub text {
     return if $_[0]{'_stunted'};
     
@@ -1071,7 +1218,6 @@ sub text {
 sub comment {
   return if $_[0]{'_stunted'};
   # Accept a "here's a comment" signal from HTML::Parser.
-  #TODO: document this
 
   my($self, $text) = @_;
   my $pos = $self->{'_pos'} || $self;
@@ -1113,7 +1259,6 @@ sub comment {
 sub declaration {
   return if $_[0]{'_stunted'};
   # Accept a "here's a markup declaration" signal from HTML::Parser.
-  #TODO: document this
 
   return unless $_[0]->{'_store_declarations'};
   my($self, $text) = @_;
@@ -1149,7 +1294,6 @@ sub declaration {
 sub process {
   return if $_[0]{'_stunted'};
   # Accept a "here's a PI" signal from HTML::Parser.
-  #TODO: document this
 
   return unless $_[0]->{'_store_pis'};
   my($self, $text) = @_;
@@ -1180,7 +1324,7 @@ sub process {
   return $e;
 }
 
-
+
 #==========================================================================
 
 #When you call $tree->parse_file($filename), and the

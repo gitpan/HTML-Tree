@@ -1,6 +1,6 @@
 
 require 5;
-# Time-stamp: "2000-08-26 15:55:26 MDT"
+# Time-stamp: "2000-09-04 14:39:52 MDT"
 package HTML::Element;
 # TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
@@ -148,7 +148,7 @@ use integer; # vroom vroom!
 
 use vars qw($VERSION $html_uc $Debug);
 
-$VERSION = '3.03';
+$VERSION = '3.04';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -283,6 +283,95 @@ sub attr
 Returns (optionally sets) the tag name (also known as the generic
 identifier) for the element $h.  In setting, the tag name is always
 converted to lower case.
+
+There are four kinds of "pseudo-elements" that show up as
+HTML::Element objects:
+
+=over
+
+=item Comment pseudo-elements
+
+These are element objects with a C<$h-E<gt>tag> value of "~comment",
+and the content of the comment is stored in the "text" attribute
+(C<$h-E<gt>attr("text")>).  For example, parsing this code with
+HTML::TreeBuilder...
+
+  <!-- I like Pie.
+     Pie is good
+  -->
+
+produces an HTML::Element object with these attributes:
+
+  "_tag",
+  "~comment",
+  "text",
+  " I like Pie.\n     Pie is good\n  "
+
+=item Declaration pseudo-elements
+
+Declarations (rarely encountered) are represented as HTML::Element
+objects with a tag name of "~declaration", and content in the "text"
+attribute.  For example, this:
+
+  <!DOCTYPE foo>
+
+produces an element whose attributes include:
+
+  "_tag", "~declaration", "text", "DOCTYPE foo"
+
+=item Processing instruction pseudo-elements
+
+PIs (rarely encountered) are represented as HTML::Element objects with
+a tag name of "~pi", and content in the "text" attribute.  For
+example, this:
+
+  <?stuff foo?>
+
+produces an element whose attributes include:
+
+  "_tag", "~pi", "text", "stuff foo?"
+
+(assuming a recent version of HTML::Parser)
+
+=item ~literal pseudo-elements
+
+These objects are not currently produced by HTML::TreeBuilder, but can
+be used to represent a "super-literal" -- i.e., a literal you want to
+be immune from escaping.  (Yes, I just made that term up.)
+
+That is, this is useful if you want to insert code into a tree that
+you plan to dump out with C<as_HTML>, where you want, for some reason,
+to suppress C<as_HTML>'s normal behavior of amp-quoting text segments.
+
+For expample, this:
+
+  my $literal = HTML::Element->new('~literal',
+    'text' => 'x < 4 & y > 7'
+  );
+  my $span = HTML::Element->new('span');
+  $span->push_content($literal);
+  print $span->as_HTML;
+
+prints this:
+
+  <span>x < 4 & y > 7</span>
+
+Whereas this:
+
+  my $span = HTML::Element->new('span');
+  $span->push_content('x < 4 & y > 7');
+    # normal text segment
+  print $span->as_HTML;
+
+prints this:
+
+  <span>x &lt; 4 &amp; y &gt; 7</span>
+
+Unless you're inserting lots of pre-cooked code into existing trees,
+and dumping them out again, it's not likely that you'll find
+C<~literal> pseudo-elements useful.
+
+=back
 
 =cut
 
@@ -1050,7 +1139,7 @@ sub normalize_content {
 =item $h->delete_ignorable_whitespace()
 
 This traverses under $h and deletes any text segments that are ignorable
-whitespace.
+whitespace.  You should not use this if $h under a 'pre' element.
 
 =cut
 
@@ -1475,12 +1564,11 @@ sub starttag
     
     my $name = $self->{'_tag'};
     
-    # TODO: document these...
     return        $self->{'text'}        if $name eq '~literal';
     
     return "<!" . $self->{'text'} . ">"  if $name eq '~declaration';
     
-    return "<?" . $self->{'text'} . "?>" if $name eq '~pi';
+    return "<?" . $self->{'text'} . ">"  if $name eq '~pi';
     
     if($name eq '~comment') {
       if(ref($self->{'text'} || '') eq 'ARRAY') {
@@ -1535,7 +1623,7 @@ sub endtag
     $html_uc ? "</\U$_[0]->{'_tag'}>" : "</\L$_[0]->{'_tag'}>";
 }
 
-
+
 #==========================================================================
 # This, ladies and germs, is an iterative implementation of a
 # recursive algorithm.  DON'T TRY THIS AT HOME.
@@ -1737,7 +1825,7 @@ sub traverse {
   }
   return $start;
 }
-
+
 
 =back
 
