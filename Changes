@@ -1,4 +1,26 @@
-# Time-stamp: "2000-06-12 02:00:08 MDT"
+# Time-stamp: "2000-06-28 13:49:46 MDT"
+
+2000-06-28   Sean M. Burke <sburke@cpan.org>
+
+   Release 0.68
+
+   Fixed doc typo for HTML::Element's lineage_tag_names method.
+
+   Fixed lame bug in HTML::Element's all_external_attr that made it
+   quite useless.  Thanks to Rich Wales <richw@webcom.com> for the bug
+   report and patch.
+
+   Changed as_text to no longer DEcode entities, as it formerly did,
+   and was documented to.  Since entities are already decoded by time
+   text is stored in the tree, another decoding step is wrong.  Neither
+   me nor Gisle Aas can remember what that was doing there in the
+   first place.
+
+   Changed as_text to not traverse under 'style' and 'script'
+   elements.  Rewrote as_text's traverser to be iterative.
+
+   Added a bit of text to HTML::AsSubs to recommend using XML::Generator.
+
 
 2000-06-12   Sean M. Burke  <sburke@cpan.org>
 

@@ -1,8 +1,10 @@
 
 require 5;
-# Time-stamp: "2000-06-12 02:06:57 MDT"
+# Time-stamp: "2000-06-28 13:45:44 MDT"
 package HTML::Element;
 
+# TODO: make as_HTML be mindful of CDATA-content elements, and not ampquote text under them?
+# TODO: make extract_links do the right thing with forms with no action param ?
 # TODO: add 'are_element_identical' method ?
 # TODO: add 'are_content_identical' method ?
 # TODO: maybe alias ->destroy to ->delete ?
@@ -150,8 +152,10 @@ use vars qw($VERSION
             %emptyElement %optionalEndTag %linkElements %boolean_attr
            );
 
-$VERSION = '1.55';
+$VERSION = '1.56';
 sub Version { $VERSION; }
+
+my $nillio = [];
 
 # Constants for signalling back to the traverser:
 my $travsignal_package = __PACKAGE__ . '::_travsignal';
@@ -558,7 +562,7 @@ sub all_external_attr {
   my $self = $_[0];
   return
     map(
-        (length($_) && substr($_,0,1) eq '_') ? () : ($self->{$_}),
+        (length($_) && substr($_,0,1) eq '_') ? () : ($_, $self->{$_}),
         keys %$self
        );
 }
@@ -1302,40 +1306,36 @@ sub as_HTML
 =item $h->as_text(skip_dels => 1)
 
 Returns a string consisting of only the text parts of the element's
-descendants.  Entities are decoded to corresponding ISO-8859-1
-(Latin-1) characters.  See L<HTML::Entities> for more information.
+descendants.
 
-If C<skip_dels> is true, then text content under "del" nodes is not
-included in what's returned.
+Text under 'script' or 'style' elements is never included in what's
+returned.  If C<skip_dels> is true, then text content under "del"
+nodes is not included in what's returned.
 
 =cut
 
 sub as_text {
-    my($self,%options) = @_;
-    
-    my @text = ();
-    my $skip_dels = $options{'skip_dels'} || 0;
-    #print "Skip dels: $skip_dels\n";
-    $self->traverse(
-      [
-         sub { # work only in pre-order
-            if(ref $_[0]) {
-                #print "Tag: $_[0]{'_tag'}\n";
-                return 0 if $skip_dels and $_[1] and $_[0]{'_tag'} eq 'del';
-                # else just fall thru to returning 1.
-            } else {
-                # simple text content
-                push(@text, $_[0]); # copies it
-                scalar HTML::Entities::decode_entities($text[-1]);
-                 # decode in place
-            }
-            1;
-         },
-         undef # no post-order call
-       ]
-       # and don't ignore text nodes
-    );
-    join('', @text);
+  # Yet another iteratively implemented traverser
+  my($this,%options) = @_;
+  my $skip_dels = $options{'skip_dels'} || 0;
+  #print "Skip dels: $skip_dels\n";
+  my(@todo) = ($this);
+  my $tag;
+  my $text = '';
+  while(@todo) {
+    if(!defined($todo[0])) { # undef!
+      # no-op
+    } elsif(!ref($todo[0])) { # text bit!  save it!
+      $text .= shift @todo;
+    } else { # it's a ref -- traverse under it
+      unshift @todo, @{$this->{'_content'} || $nillio}
+        unless
+          ($tag = ($this = shift @todo)->{'_tag'}) eq 'style'
+          or $tag eq 'script'
+          or ($skip_dels and $tag eq 'del');
+    }
+  }
+  return $text;
 }
 
 
@@ -2086,7 +2086,7 @@ sub lineage {
 Returns the list of the tag names of $h's ancestors, starting
 with its parent, and that parent's parent, and so on, up to the
 root.  If $h is root, this returns an empty list.
-Example output: ('html', 'body', 'table', 'tr', 'td', 'em')
+Example output: C<('em', 'td', 'tr', 'table', 'body', 'html')>
 
 =cut
 
@@ -2317,7 +2317,6 @@ makes for very concise and clear code.)
 
 =cut
 
-my $nillio = [];
 sub look_down {
   ref($_[0]) or Carp::croak "look_down works only as an object method";
 

@@ -1,7 +1,7 @@
 
 require 5;
 package HTML::AsSubs;
-#Time-stamp: "2000-05-18 23:40:33 MDT"
+#Time-stamp: "2000-06-28 13:06:25 MDT"
 
 =head1 NAME
 
@@ -34,6 +34,11 @@ For a similar idea (i.e., it's another case where the syntax tree
 of the Perl source mirrors the syntax tree of the HTML produced),
 see HTML::Element's C<new_from_lol> method.
 
+For what I now think is a cleaner implementation of this same idea,
+see the excellent module C<XML::Generator>, which is what I suggest
+for actual real-life use.  (I suggest this over C<HTML::AsSubs> and
+over C<CGI.pm>'s HTML-making functions.)
+
 =head1 ACKNOWLEDGEMENT
 
 This module was inspired by the following message:
@@ -64,7 +69,7 @@ because it clashes with the builtin tr/../../ operator.
 
 =head1 SEE ALSO
 
-L<HTML::Element>
+L<HTML::Element>, L<XML::Generator>
 
 =cut
 
@@ -75,7 +80,11 @@ require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = '1.15';
+$VERSION = '1.16';
+
+# Problem: exports so damned much.  Has no concept of "export only HTML4
+#  elements".  TODO:?? make something that make functions that just
+#  wrap XML::Generator calls?
 
 use vars qw(@TAGS);
 @TAGS = qw(html
