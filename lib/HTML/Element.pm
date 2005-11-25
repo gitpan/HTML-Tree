@@ -1,28 +1,34 @@
-
-require 5;
-# Time-stamp: "2003-09-15 01:03:09 ADT"
 package HTML::Element;
 
 =head1 NAME
 
 HTML::Element - Class for objects that represent HTML elements
 
+=head1 VERSION
+
+Version 3.17_01
+
+=cut
+
+use vars qw( $VERSION );
+$VERSION = '3.17_01';
+
 =head1 SYNOPSIS
 
-  use HTML::Element;
-  $a = HTML::Element->new('a', href => 'http://www.perl.com/');
-  $a->push_content("The Perl Homepage");
+    use HTML::Element;
+    $a = HTML::Element->new('a', href => 'http://www.perl.com/');
+    $a->push_content("The Perl Homepage");
 
-  $tag = $a->tag;
-  print "$tag starts out as:",  $a->starttag, "\n";
-  print "$tag ends as:",  $a->endtag, "\n";
-  print "$tag\'s href attribute is: ", $a->attr('href'), "\n";
+    $tag = $a->tag;
+    print "$tag starts out as:",  $a->starttag, "\n";
+    print "$tag ends as:",  $a->endtag, "\n";
+    print "$tag\'s href attribute is: ", $a->attr('href'), "\n";
 
-  $links_r = $a->extract_links();
-  print "Hey, I found ", scalar(@$links_r), " links.\n";
-  
-  print "And that, as HTML, is: ", $a->as_HTML, "\n";
-  $a = $a->delete;
+    $links_r = $a->extract_links();
+    print "Hey, I found ", scalar(@$links_r), " links.\n";
+
+    print "And that, as HTML, is: ", $a->as_HTML, "\n";
+    $a = $a->delete;
 
 =head1 DESCRIPTION
 
@@ -36,8 +42,7 @@ objects as nodes can represent the syntax tree for a HTML document.
 
 =head1 HOW WE REPRESENT TREES
 
-It may occur to you to wonder what exactly a "tree" is, and how
-it's represented in memory.  Consider this HTML document:
+Consider this HTML document:
 
   <html lang='en-US'>
     <head>
@@ -83,7 +88,7 @@ Another way to represent the above tree is with indenting:
         "I like potatoes"
 
 Incidentally, diagramming with indenting works much better for very
-large trees, and is easier for a program to generate.  The C<<$tree->dump>>
+large trees, and is easier for a program to generate.  The C<< $tree->dump >>
 method uses indentation just that way.
 
 However you diagram the tree, it's stored the same in memory -- it's a
@@ -126,7 +131,7 @@ While you could access the content of a tree by writing code that says
 child's I<third> child", you're more likely to have to scan the contents
 of a tree, looking for whatever nodes, or kinds of nodes, you want to
 do something with.  The most straightforward way to look over a tree
-is to "traverse" it; an HTML::Element method (C<<$h->traverse>>) is
+is to "traverse" it; an HTML::Element method (C<< $h->traverse >>) is
 provided for this purpose; and several other HTML::Element methods are
 based on it.
 
@@ -143,9 +148,8 @@ use HTML::Entities ();
 use HTML::Tagset ();
 use integer; # vroom vroom!
 
-use vars qw($VERSION $html_uc $Debug $ID_COUNTER %list_type_to_sub);
+use vars qw($html_uc $Debug $ID_COUNTER %list_type_to_sub);
 
-$VERSION = '3.16';
 $Debug = 0 unless defined $Debug;
 sub Version { $VERSION; }
 
@@ -185,9 +189,7 @@ $html_uc = 0;
 
 =head1 BASIC METHODS
 
-=over 4
-
-=item $h = HTML::Element->new('tag', 'attrname' => 'value', ... )
+=head2 $h = HTML::Element->new('tag', 'attrname' => 'value', ... )
 
 This constructor method returns a new HTML::Element object.  The tag
 name is a required argument; it will be forced to lowercase.
@@ -219,8 +221,7 @@ creation time.
 #  }, 'HTML::Element';
 #
 
-sub new
-{
+sub new {
     my $class = shift;
     $class = ref($class) || $class;
 
@@ -237,11 +238,11 @@ sub new
     if ($tag eq 'html') {
         $self->{'_pos'} = undef;
     }
-    $self;
+    return $self;
 }
 
 
-=item $h->attr('attr') or $h->attr('attr', 'value')
+=head2 $h->attr('attr') or $h->attr('attr', 'value')
 
 Returns (optionally sets) the value of the given attribute of $h.  The
 attribute name (but not the value, if provided) is forced to
@@ -259,8 +260,7 @@ string) actually deletes the attribute.
 
 =cut
 
-sub attr
-{
+sub attr {
     my $self = shift;
     my $attr = scalar($self->_fold_case(shift));
     if (@_) {  # set
@@ -268,16 +268,18 @@ sub attr
             my $old = $self->{$attr};
             $self->{$attr} = $_[0];
             return $old;
-        } else {  # delete, actually
+        }
+        else {  # delete, actually
             return delete $self->{$attr};
         }
-    } else {   # get
+    }
+    else {   # get
         return $self->{$attr};
     }
 }
 
 
-=item $h->tag() or $h->tag('tagname')
+=head2 $h->tag() or $h->tag('tagname')
 
 Returns (optionally sets) the tag name (also known as the generic
 identifier) for the element $h.  In setting, the tag name is always
@@ -342,7 +344,7 @@ That is, this is useful if you want to insert code into a tree that
 you plan to dump out with C<as_HTML>, where you want, for some reason,
 to suppress C<as_HTML>'s normal behavior of amp-quoting text segments.
 
-For expample, this:
+For example, this:
 
   my $literal = HTML::Element->new('~literal',
     'text' => 'x < 4 & y > 7'
@@ -374,20 +376,18 @@ C<~literal> pseudo-elements useful.
 
 =cut
 
-sub tag
-{
+sub tag {
     my $self = shift;
     if (@_) { # set
-    #print "SET\n";
         $self->{'_tag'} = $self->_fold_case($_[0]);
-    } else { # get
-    #print "GET\n";
+    }
+    else { # get
         $self->{'_tag'};
     }
 }
 
 
-=item $h->parent() or $h->parent($new_parent)
+=head2 $h->parent() or $h->parent($new_parent)
 
 Returns (optionally sets) the parent (aka "container") for this element.
 The parent should either be undef, or should be another element.
@@ -401,20 +401,20 @@ root of its subtree.
 
 =cut
 
-sub parent
-{
+sub parent {
     my $self = shift;
     if (@_) { # set
         Carp::croak "an element can't be made its own parent"
          if defined $_[0] and ref $_[0] and $self eq $_[0]; # sanity
         $self->{'_parent'} = $_[0];
-    } else {
+    }
+    else {
         $self->{'_parent'}; # get
     }
 }
 
 
-=item $h->content_list()
+=head2 $h->content_list()
 
 Returns a list of the child nodes of this element -- i.e., what
 nodes (elements or text segments) are inside/under this element. (Note
@@ -425,16 +425,14 @@ as you may expect.
 
 =cut
 
-sub content_list
-{
+sub content_list {
     return
       wantarray ?        @{shift->{'_content'} || return()}
                 : scalar @{shift->{'_content'} || return 0};
 }
 
 
-
-=item $h->content()
+=head2 $h->content()
 
 This somewhat deprecated method returns the content of this element;
 but unlike content_list, this returns either undef (which you should
@@ -444,33 +442,32 @@ a defined non-reference scalar value), or an HTML::Element object.
 Note that even if an arrayref is returned, it may be a reference to an
 empty array.
 
-While older code should feel free to continue to use $h->content,
-new code should use $h->content_list in almost all conceivable
+While older code should feel free to continue to use C<< $h->content >>,
+new code should use C<< $h->content_list >> in almost all conceivable
 cases.  It is my experience that in most cases this leads to simpler
 code anyway, since it means one can say:
 
-  @children = $h->content_list;
+    @children = $h->content_list;
 
 instead of the inelegant:
 
-  @children = @{$h->content || []};
+    @children = @{$h->content || []};
 
-If you do use $h->content (or $h->content_array_ref), you should not
+If you do use C<< $h->content >> (or C<< $h->content_array_ref >>), you should not
 use the reference returned by it (assuming it returned a reference,
 and not undef) to directly set or change the content of an element or
-text segment!  Instead use C<content_refs_list> or any of the other
+text segment!  Instead use L<content_refs_list> or any of the other
 methods under "Structure-Modifying Methods", below.
 
 =cut
 
 # a read-only method!  can't say $h->content( [] )!
-sub content
-{
-    shift->{'_content'};
+sub content {
+    return shift->{'_content'};
 }
 
 
-=item $h->content_array_ref()
+=head2 $h->content_array_ref()
 
 This is like C<content> (with all its caveats and deprecations) except
 that it is guaranteed to return an array reference.  That is, if the
@@ -482,44 +479,44 @@ return that.
 =cut
 
 sub content_array_ref {
-  shift->{'_content'} ||= [];
+    return shift->{'_content'} ||= [];
 }
 
 
-=item $h->content_refs_list
+=head2 $h->content_refs_list
 
-This returns a list of scalar references to each element of $h's
+This returns a list of scalar references to each element of C<$h>'s
 content list.  This is useful in case you want to in-place edit any
 large text segments without having to get a copy of the current value
 of that segment value, modify that copy, then use the
 C<splice_content> to replace the old with the new.  Instead, here you
 can in-place edit:
 
-  foreach my $item_r ($h->content_refs_list) {
-    next if ref $$item_r;
-    $$item_r =~ s/honour/honor/g;
-  }
+    foreach my $item_r ($h->content_refs_list) {
+        next if ref $$item_r;
+        $$item_r =~ s/honour/honor/g;
+    }
 
 You I<could> currently achieve the same affect with:
 
-  foreach my $item (@{ $h->content_array_ref }) {
-   # deprecated!
-    next if ref $item;
-    $item =~ s/honour/honor/g;
-  }
+    foreach my $item (@{ $h->content_array_ref }) {
+        # deprecated!
+        next if ref $item;
+        $item =~ s/honour/honor/g;
+    }
 
-...except that using the return value of $h->content or
-$h->content_array_ref to do that is deprecated, and just might stop
+...except that using the return value of C<< $h->content >> or
+C<< $h->content_array_ref >> to do that is deprecated, and just might stop
 working in the future.
 
 =cut
 
 sub content_refs_list {
-  \( @{ shift->{'_content'} || return() } );
+    return \( @{ shift->{'_content'} || return() } );
 }
 
 
-=item $h->implicit() or $h->implicit($bool)
+=head2 $h->implicit() or $h->implicit($bool)
 
 Returns (optionally sets) the "_implicit" attribute.  This attribute is
 a flag that's used for indicating that the element was not originally
@@ -529,69 +526,67 @@ HTML structure.
 
 =cut
 
-sub implicit
-{
-    shift->attr('_implicit', @_);
+sub implicit {
+    return shift->attr('_implicit', @_);
 }
 
 
-
-=item $h->pos() or $h->pos($element)
+=head2 $h->pos() or $h->pos($element)
 
 Returns (and optionally sets) the "_pos" (for "current I<pos>ition")
-pointer of $h.
-This attribute is a pointer used during some parsing operations,
-whose value is whatever HTML::Element element at or under $h is
-currently "open", where $h->insert_element(NEW) will actually insert a
-new element.
+pointer of C<$h>.  This attribute is a pointer used during some
+parsing operations, whose value is whatever HTML::Element element
+at or under C<$h> is currently "open", where C<< $h->insert_element(NEW) >>
+will actually insert a new element.
 
 (This has nothing to do with the Perl function called "pos", for
 controlling where regular expression matching starts.)
 
-If you set $h->pos($element), be sure that $element is either $h, or
-an element under $h.
+If you set C<< $h->pos($element) >>, be sure that C<$element> is
+either C<$h>, or an element under C<$h>.
 
-If you've been modifying the tree under $h and are
-no longer sure $h->pos is valid, you can enforce validity with:
+If you've been modifying the tree under C<$h> and are no longer
+sure C<< $h->pos >> is valid, you can enforce validity with:
 
     $h->pos(undef) unless $h->pos->is_inside($h);
 
 =cut
 
-sub pos
-{
+sub pos {
     my $self = shift;
     my $pos = $self->{'_pos'};
     if (@_) {  # set
-        if(defined $_[0] and $_[0] ne $self) {
-          $self->{'_pos'} = $_[0]; # means that element
-        } else {
-          $self->{'_pos'} = undef; # means $self
+        my $parm = shift;
+        if(defined $parm and $parm ne $self) {
+            $self->{'_pos'} = $parm; # means that element
+        }
+        else {
+            $self->{'_pos'} = undef; # means $self
         }
     }
     return $pos if defined($pos);
-    $self;
+    return $self;
 }
 
 
-=item $h->all_attr()
+=head2 $h->all_attr()
 
 Returns all this element's attributes and values, as key-value pairs.
 This will include any "internal" attributes (i.e., ones not present
 in the original element, and which will not be represented if/when you
-call $h->as_HTML).  Internal attributes are distinguished by the fact
+call C<< $h->as_HTML >>).  Internal attributes are distinguished by the fact
 that the first character of their key (not value! key!) is an
 underscore ("_").
 
-Example output of C<$h-E<gt>all_attr()> :
+Example output of C<< $h->all_attr() >> :
 C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
 '_content', >I<[array-ref value]>.
 
-=item $h->all_attr_names()
+=head2 $h->all_attr_names()
 
 Like all_attr, but only returns the names of the attributes.
 
-Example output of C<$h-E<gt>all_attr()> :
+Example output of C<< $h->all_attr() >> :
 C<'_parent', '_tag', 'lang', '_content', >.
 
 =cut
@@ -605,15 +600,15 @@ sub all_attr {
 }
 
 sub all_attr_names {
-  return keys %{$_[0]};
+    return keys %{$_[0]};
 }
 
 
-=item $h->all_external_attr()
+=head2 $h->all_external_attr()
 
 Like C<all_attr>, except that internal attributes are not present.
 
-=item $h->all_external_attr_names()
+=head2 $h->all_external_attr_names()
 
 Like C<all_external_attr_names>, except that internal attributes' names
 are not present.
@@ -639,10 +634,10 @@ sub all_external_attr_names {
 
 
 
-=item $h->id() or $h->id($string)
+=head2 $h->id() or $h->id($string)
 
 Returns (optionally sets to C<$string>) the "id" attribute.
-C<$h-E<gt>id(undef)> deletes the "id" attribute.
+C<< $h->id(undef) >> deletes the "id" attribute.
 
 =cut
 
@@ -661,9 +656,9 @@ sub id {
 }
 
 
-=item $h->idf() or $h->idf($string)
+=head2 $h->idf() or $h->idf($string)
 
-Just like the C<id> method, except that if you call C<$h-E<gt>idf()> and
+Just like the C<id> method, except that if you call C<< $h->idf() >> and
 no "id" attribute is defined for this element, then it's set to a
 likely-to-be-unique value, and returned.  (The "f" is for "force".)
 
@@ -680,43 +675,42 @@ sub _gensym {
 }
 
 sub idf {
-  if(@_ == 1) {
-    my $x;
-    if(defined($x = $_[0]{'id'}) and length $x) {
-      return $x;
-    } else {
-      return $_[0]{'id'} = _gensym();
+    my $nparms = scalar @_;
+
+    if ($nparms == 1) {
+        my $x;
+        if (defined($x = $_[0]{'id'}) and length $x) {
+            return $x;
+        }
+        else {
+            return $_[0]{'id'} = _gensym();
+        }
     }
-  } elsif(@_ == 2) {
-    if(defined $_[1]) {
-      return $_[0]{'id'} = $_[1];
-    } else {
-      return delete $_[0]{'id'};
+    if ($nparms == 2) {
+        if (defined $_[1]) {
+            return $_[0]{'id'} = $_[1];
+        }
+        else {
+            return delete $_[0]{'id'};
+        }
     }
-  } else {
     Carp::croak '$node->idf can\'t take ' . scalar(@_) . ' parameters!';
-  }
 }
 
-#==========================================================================
-
-=back
 
 =head1 STRUCTURE-MODIFYING METHODS
 
 These methods are provided for modifying the content of trees
 by adding or changing nodes as parents or children of other nodes.
 
-=over 4
-
-=item $h->push_content($element_or_text, ...)
+=head2 $h->push_content($element_or_text, ...)
 
 Adds the specified items to the I<end> of the content list of the
-element $h.  The items of content to be added should each be either a
+element C<$h>.  The items of content to be added should each be either a
 text segment (a string), an HTML::Element object, or an arrayref.
-Arrayrefs are fed thru C<$h-E<gt>new_from_lol(that_arrayref)> to
+Arrayrefs are fed thru C<< $h->new_from_lol(that_arrayref) >> to
 convert them into elements, before being added to the content
-list of $h.  This means you can say things concise things like:
+list of C<$h>.  This means you can say things concise things like:
 
   $body->push_content(
     ['br'],
@@ -771,8 +765,7 @@ What you'd to do get the latter is:
 
 =cut
 
-sub push_content
-{
+sub push_content {
     my $self = shift;
     return $self unless @_;
 
@@ -781,12 +774,14 @@ sub push_content
         if (ref($_) eq 'ARRAY') {
             # magically call new_from_lol
             push @$content, $self->new_from_lol($_);
-	    $content->[-1]->{'_parent'} = $self;
-        } elsif(ref($_)) {  # insert an element
+            $content->[-1]->{'_parent'} = $self;
+        }
+        elsif (ref($_)) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
             push(@$content, $_);
-        } else {  # insert text segment
+        }
+        else {  # insert text segment
             if (@$content && !ref $content->[-1]) {
                 # last content element is also text segment -- append
                 $content->[-1] .= $_;
@@ -795,11 +790,11 @@ sub push_content
             }
         }
     }
-    $self;
+    return $self;
 }
 
 
-=item $h->unshift_content($element_or_text, ...)
+=head2 $h->unshift_content($element_or_text, ...)
 
 Just like C<push_content>, but adds to the I<beginning> of the $h
 element's content list.
@@ -813,8 +808,7 @@ while adding to the content list.  See above for a discussion of this.
 
 =cut
 
-sub unshift_content
-{
+sub unshift_content {
     my $self = shift;
     return $self unless @_;
 
@@ -823,26 +817,29 @@ sub unshift_content
         if (ref($_) eq 'ARRAY') {
             # magically call new_from_lol
             unshift @$content, $self->new_from_lol($_);
-	    $content->[0]->{'_parent'} = $self;
-        } elsif (ref $_) {  # insert an element
+            $content->[0]->{'_parent'} = $self;
+        }
+        elsif (ref $_) {  # insert an element
             $_->detach if $_->{'_parent'};
             $_->{'_parent'} = $self;
             unshift(@$content, $_);
-        } else {  # insert text segment
+        }
+        else {  # insert text segment
             if (@$content && !ref $content->[0]) {
                 # last content element is also text segment -- prepend
                 $content->[0]  = $_ . $content->[0];
-            } else {
+            }
+            else {
                 unshift(@$content, $_);
             }
         }
     }
-    $self;
+    return $self;
 }
 
 # Cf.  splice ARRAY,OFFSET,LENGTH,LIST
 
-=item $h->splice_content($offset, $length, $element_or_text, ...)
+=head2 $h->splice_content($offset, $length, $element_or_text, ...)
 
 Detaches the elements from $h's list of content-nodes, starting at
 $offset and continuing for $length items, replacing them with the
@@ -861,37 +858,38 @@ a child of $h.
 
 sub splice_content {
     my($self, $offset, $length, @to_add) = @_;
-    Carp::croak
-      "splice_content requires at least one argument"
-      if @_ < 2;  # at least $h->splice_content($offset);
+    Carp::croak "splice_content requires at least one argument"
+        if @_ < 2;  # at least $h->splice_content($offset);
     return $self unless @_;
 
     my $content = ($self->{'_content'} ||= []);
     # prep the list
 
     my @out;
-    if(@_ > 2) {  # self, offset, length, ...
-      foreach my $n (@to_add) {
-        if(ref($n) eq 'ARRAY') {
-          $n = $self->new_from_lol($n);
-          $n->{'_parent'} = $self;
-        } elsif(ref($n)) {
-          $n->detach;
-          $n->{'_parent'} = $self;
+    if (@_ > 2) {  # self, offset, length, ...
+        foreach my $n (@to_add) {
+            if (ref($n) eq 'ARRAY') {
+                $n = $self->new_from_lol($n);
+                $n->{'_parent'} = $self;
+            }
+            elsif (ref($n)) {
+                $n->detach;
+                $n->{'_parent'} = $self;
+            }
         }
-      }
-      @out = splice @$content, $offset, $length, @to_add;
-    } else {  #  self, offset
-      @out = splice @$content, $offset;
+        @out = splice @$content, $offset, $length, @to_add;
+    }
+    else {  #  self, offset
+        @out = splice @$content, $offset;
     }
     foreach my $n (@out) {
-      $n->{'_parent'} = undef if ref $n;
+        $n->{'_parent'} = undef if ref $n;
     }
     return @out;
 }
 
 
-=item $h->detach()
+=head2 $h->detach()
 
 This unlinks $h from its parent, by setting its 'parent' attribute to
 undef, and by removing it from the content list of its parent (if it
@@ -902,18 +900,18 @@ its parent are explicitly destroyed.
 =cut
 
 sub detach {
-  my $self = $_[0];
-  return undef unless(my $parent = $self->{'_parent'});
-  $self->{'_parent'} = undef;
-  my $cohort = $parent->{'_content'} || return $parent;
-  @$cohort = grep { not( ref($_) and $_ eq $self) } @$cohort;
+    my $self = $_[0];
+    return undef unless(my $parent = $self->{'_parent'});
+    $self->{'_parent'} = undef;
+    my $cohort = $parent->{'_content'} || return $parent;
+    @$cohort = grep { not( ref($_) and $_ eq $self) } @$cohort;
     # filter $self out, if parent has any evident content
-  
-  return $parent;
+
+    return $parent;
 }
 
 
-=item $h->detach_content()
+=head2 $h->detach_content()
 
 This unlinks $h all of $h's children from $h, and returns them.
 Note that these are not explicitly destroyed; for that, you
@@ -922,103 +920,106 @@ can just use $h->delete_content.
 =cut
 
 sub detach_content {
-  my $c = $_[0]->{'_content'} || return(); # in case of no content
-  for (@$c) { $_->{'_parent'} = undef if ref $_; }
-  return splice @$c;
+    my $c = $_[0]->{'_content'} || return(); # in case of no content
+    for (@$c) {
+        $_->{'_parent'} = undef if ref $_;
+    }
+    return splice @$c;
 }
 
 
-=item $h->replace_with( $element_or_text, ... ) 
+=head2 $h->replace_with( $element_or_text, ... ) 
 
-This replaces $h in its parent's content list with the nodes specified.
-The element $h (which by then may have no parent) is
-returned.  This causes a fatal error if $h has no parent.  
-The list of nodes to insert may contain $h, but at most once.
+This replaces C<$h> in its parent's content list with the nodes
+specified.  The element C<$h> (which by then may have no parent)
+is returned.  This causes a fatal error if C<$h> has no parent.
+The list of nodes to insert may contain C<$h>, but at most once.
 Aside from that possible exception, the nodes to insert should not
-already be children of $h's parent.
+already be children of C<$h>'s parent.
 
-Also, note that this method does not destroy $h -- use
-$h->replace_with(...)->delete if you need that.
+Also, note that this method does not destroy C<$h> -- use
+C<< $h->replace_with(...)->delete >> if you need that.
 
 =cut
 
 sub replace_with {
-  my($self, @replacers) = @_;
-  Carp::croak "the target node has no parent"
-    unless my($parent) = $self->{'_parent'};
+    my ($self, @replacers) = @_;
+    Carp::croak "the target node has no parent"
+        unless my($parent) = $self->{'_parent'};
 
-  my $parent_content = $parent->{'_content'};
-  Carp::croak "the target node's parent has no content!?" 
-   unless $parent_content and @$parent_content;
-  
-  my $replacers_contains_self;
-  for(@replacers) {
-    if(!ref $_) {
-      # noop
-    } elsif($_ eq $self) {
-      # noop, but check that it's there just once.
-      Carp::croak 
-        "Replacement list contains several copies of target!"
-       if $replacers_contains_self++;
-    } elsif($_ eq $parent) {
-      Carp::croak "Can't replace an item with its parent!";
-    } elsif(ref($_) eq 'ARRAY') {
-      $_ = $self->new_from_lol($_);
-    } else {
-      $_->detach;
-      $_->{'_parent'} = $parent;
-      # each of these are necessary
-    }
-  }
-  
-  #my $content_r = $self->{'_content'} || [];
-  @$parent_content 
-   = map { ( ref($_) and $_ eq $self) ? @replacers : $_ }
-         @$parent_content
-  ;
-  
-  $self->{'_parent'} = undef unless $replacers_contains_self;
-   # if replacers does contain self, then the parent attribute is fine as-is
-  
-  return $self;
+    my $parent_content = $parent->{'_content'};
+    Carp::croak "the target node's parent has no content!?" 
+    unless $parent_content and @$parent_content;
+
+    my $replacers_contains_self;
+    for(@replacers) {
+        if (!ref $_) {
+            # noop
+        }
+        elsif($_ eq $self) {
+            # noop, but check that it's there just once.
+            Carp::croak 
+            "Replacement list contains several copies of target!"
+            if $replacers_contains_self++;
+        }
+        elsif($_ eq $parent) {
+            Carp::croak "Can't replace an item with its parent!";
+        }
+        elsif(ref($_) eq 'ARRAY') {
+            $_ = $self->new_from_lol($_);
+        }
+        else {
+            $_->detach;
+            $_->{'_parent'} = $parent;
+            # each of these are necessary
+        }
+    } # for @replacers
+    @$parent_content = map { ( ref($_) and $_ eq $self) ? @replacers : $_ } @$parent_content;
+
+    $self->{'_parent'} = undef unless $replacers_contains_self;
+    # if replacers does contain self, then the parent attribute is fine as-is
+
+    return $self;
 }
 
-=item $h->preinsert($element_or_text...)
+=head2 $h->preinsert($element_or_text...)
 
-Inserts the given nodes right BEFORE $h in $h's parent's content list.
-This causes a fatal error if $h has no parent.  None of the
-given nodes should be $h or other children of $h.  Returns $h.
+Inserts the given nodes right BEFORE C<$h> in C<$h>'s parent's
+content list.  This causes a fatal error if C<$h> has no parent.
+None of the given nodes should be C<$h> or other children of C<$h>.
+Returns C<$h>.
 
 =cut
 
 sub preinsert {
-  my $self = shift;
-  return $self unless @_;
-  return $self->replace_with(@_, $self);
+    my $self = shift;
+    return $self unless @_;
+    return $self->replace_with(@_, $self);
 }
 
-=item $h->postinsert($element_or_text...)
+=head2 $h->postinsert($element_or_text...)
 
-Inserts the given nodes right AFTER $h in $h's parent's content list.
-This causes a fatal error if $h has no parent.  None of the
-given nodes should be $h or other children of $h.  Returns $h.
+Inserts the given nodes right AFTER C<$h> in C<$h>'s parent's content
+list.  This causes a fatal error if C<$h> has no parent.  None of
+the given nodes should be C<$h> or other children of C<$h>.  Returns
+C<$h>.
 
 =cut
 
 sub postinsert {
-  my $self = shift;
-  return $self unless @_;
-  return $self->replace_with($self, @_);
+    my $self = shift;
+    return $self unless @_;
+    return $self->replace_with($self, @_);
 }
 
 
-=item $h->replace_with_content()
+=head2 $h->replace_with_content()
 
-This replaces $h in its parent's content list with its own content.
-The element $h (which by then has no parent or content of its own) is
-returned.  This causes a fatal error if $h has no parent.  Also, note
-that this does not destroy $h -- use $h->replace_with_content->delete
-if you need that.
+This replaces C<$h> in its parent's content list with its own content.
+The element C<$h> (which by then has no parent or content of its own) is
+returned.  This causes a fatal error if C<$h> has no parent.  Also, note
+that this does not destroy C<$h> -- use
+C<< $h->replace_with_content->delete >> if you need that.
 
 =cut
 
@@ -1047,17 +1048,16 @@ sub replace_with_content {
 
 
 
-=item $h->delete_content()
+=head2 $h->delete_content()
 
-Clears the content of $h, calling $i->delete for each content element.
-Compare with $h->detach_content.
+Clears the content of C<$h>, calling C<< $h->delete >> for each content
+element.  Compare with C<< $h->detach_content >>.
 
-Returns $h.
+Returns C<$h>.
 
 =cut
 
-sub delete_content
-{
+sub delete_content {
     for (splice @{ delete($_[0]->{'_content'})
               # Deleting it here (while holding its value, for the moment)
               #  will keep calls to detach() from trying to uselessly filter
@@ -1077,7 +1077,7 @@ sub delete_content
 
 
 
-=item $h->delete()
+=head2 $h->delete()
 
 Detaches this element from its parent (if it has one) and explicitly
 destroys the element and all its descendants.  The return value is
@@ -1092,18 +1092,15 @@ But this fails with HTML::Element trees, because a parent element
 always holds references to its children, and its children elements
 hold references to the parent, so no element ever looks like it's
 I<not> in use.  So, to destroy those elements, you need to call
-$h->delete on the parent.
+C<< $h->delete >> on the parent.
 
 =cut
-
-#'
 
 # two handy aliases
 sub destroy { shift->delete(@_) }
 sub destroy_content { shift->delete_content(@_) }
 
-sub delete
-{
+sub delete {
     my $self = $_[0];
     $self->delete_content   # recurse down
      if $self->{'_content'} && @{$self->{'_content'}};
@@ -1116,8 +1113,7 @@ sub delete
 }
 
 
-
-=item $h->clone()
+=head2 $h->clone()
 
 Returns a copy of the element (whose children are clones (recursively)
 of the original's children, if any).
@@ -1143,7 +1139,7 @@ sub clone {
 
   my $new = bless { %$it }, ref($it);     # COPY!!! HOOBOY!
   delete @$new{'_content', '_parent', '_pos', '_head', '_body'};
-  
+
   # clone any contents
   if($it->{'_content'} and @{$it->{'_content'}}) {
     $new->{'_content'} = [  ref($it)->clone_list( @{$it->{'_content'}} )  ];
@@ -1155,19 +1151,23 @@ sub clone {
   return $new;
 }
 
-=item HTML::Element->clone_list(...nodes...)
-
-=item or: ref($h)->clone_list(...nodes...)
+=head2 HTML::Element->clone_list(...nodes...)
 
 Returns a list consisting of a copy of each node given.
 Text segments are simply copied; elements are cloned by
 calling $it->clone on each of them.
 
+Note that this must be called as a class method, not as an instance
+method.  C<clone_list> will croak if called as an instance method.
+You can also call it like so:
+
+    ref($h)->clone_list(...nodes...)
+
 =cut
 
 sub clone_list {
-  Carp::croak "I can be called only as a class method" if ref shift @_;
-  
+  Carp::croak "clone_list can be called only as a class method" if ref shift @_;
+
    # all that does is get me here
   return
     map
@@ -1181,11 +1181,11 @@ sub clone_list {
 }
 
 
-=item $h->normalize_content
+=head2 $h->normalize_content
 
-Normalizes the content of $h -- i.e., concatenates any adjacent text nodes.
-(Any undefined text segments are turned into empty-strings.)
-Note that this does not recurse into $h's descendants.
+Normalizes the content of C<$h> -- i.e., concatenates any adjacent
+text nodes.  (Any undefined text segments are turned into empty-strings.)
+Note that this does not recurse into C<$h>'s descendants.
 
 =cut
 
@@ -1236,14 +1236,12 @@ sub normalize_content {
   return;
 }
 
-=item $h->delete_ignorable_whitespace()
+=head2 $h->delete_ignorable_whitespace()
 
-This traverses under $h and deletes any text segments that are ignorable
-whitespace.  You should not use this if $h under a 'pre' element.
+This traverses under C<$h> and deletes any text segments that are ignorable
+whitespace.  You should not use this if C<$h> under a 'pre' element.
 
 =cut
-
-#==========================================================================
 
 sub delete_ignorable_whitespace {
   # This doesn't delete all sorts of whitespace that won't actually
@@ -1285,13 +1283,13 @@ sub delete_ignorable_whitespace {
         next;
       }
       next unless $sibs->[$i] =~ m<^\s+$>s; # it's /all/ whitespace
-    
+
       print "Under $ptag whose canTighten ",
           "value is ", 0 + $HTML::Element::canTighten{$ptag}, ".\n"
        if $Debug > 3;
 
       # It's all whitespace...
-      
+
       if($i == 0) {
         if(@$sibs == 1) { # I'm an only child
           next unless $HTML::Element::canTighten{$ptag}; # parent
@@ -1318,7 +1316,7 @@ sub delete_ignorable_whitespace {
           unless
             ref $sibs->[$i - 1] or ref $sibs->[$i + 1];
          # if NEITHER sib is a node, quit
-         
+
         next if
           # bailout condition: if BOTH are INeligible nodes
           #  (as opposed to being text, or being eligible nodes)
@@ -1336,24 +1334,23 @@ sub delete_ignorable_whitespace {
      # end of the loop-over-children
   }
    # end of the while loop.
-  
+
   return;
 }
 
-#--------------------------------------------------------------------------
 
-=item $h->insert_element($element, $implicit)
+=head2 $h->insert_element($element, $implicit)
 
 Inserts (via push_content) a new element under the element at
-$h->pos().  Then updates $h->pos() to point to the inserted element,
-unless $element is a prototypically empty element like "br", "hr",
-"img", etc.  The new $h->pos() is returned.  This method is useful
-only if your particular tree task involves setting $h->pos.
+C<< $h->pos() >>.  Then updates C<< $h->pos() >> to point to the inserted
+element, unless $element is a prototypically empty element like
+"br", "hr", "img", etc.  The new C<< $h->pos() >> is returned.  This
+method is useful only if your particular tree task involves setting
+C<< $h->pos() >>.
 
 =cut
 
-sub insert_element
-{
+sub insert_element {
     my($self, $tag, $implicit) = @_;
     return $self->pos() unless $tag; # noop if nothing to insert
 
@@ -1363,8 +1360,8 @@ sub insert_element
         $tag = $e->tag;
     } else { # just a tag name -- so make the element
         $e = ($self->{'_element_class'} || __PACKAGE__)->new($tag);
-	++($self->{'_element_count'}) if exists $self->{'_element_count'};
-	 # undocumented.  see TreeBuilder.
+        ++($self->{'_element_count'}) if exists $self->{'_element_count'};
+         # undocumented.  see TreeBuilder.
     }
 
     $e->{'_implicit'} = 1 if $implicit;
@@ -1409,15 +1406,11 @@ sub _fold_case_NOT {
 
 #==========================================================================
 
-=back
-
 =head1 DUMPING METHODS
 
-=over 4
+=head2 $h->dump()
 
-=item $h->dump()
-
-=item $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
+=head2 $h->dump(*FH)  ; # or *FH{IO} or $fh_obj
 
 Prints the element and all its children to STDOUT (or to a specified
 filehandle), in a format useful
@@ -1426,8 +1419,7 @@ indentation (no end tags).
 
 =cut
 
-sub dump
-{
+sub dump {
     my($self, $fh, $depth) = @_;
     $fh = *STDOUT{IO} unless defined $fh;
     $depth = 0 unless defined $depth;
@@ -1453,11 +1445,11 @@ sub dump
 }
 
 
-=item $h->as_HTML() or $h->as_HTML($entities)
+=head2 $h->as_HTML() or $h->as_HTML($entities)
 
-=item or $h->as_HTML($entities, $indent_char)
+=head2 or $h->as_HTML($entities, $indent_char)
 
-=item or $h->as_HTML($entities, $indent_char, \%optional_end_tags)
+=head2 or $h->as_HTML($entities, $indent_char, \%optional_end_tags)
 
 Returns a string representing in HTML the element and its
 descendants.  The optional argument C<$entities> specifies a string of
@@ -1496,17 +1488,17 @@ sub as_HTML {
   my $last_tag_tightenable = 0;
   my $this_tag_tightenable = 0;
   my $nonindentable_ancestors = 0;  # count of nonindentible tags over us.
-  
+
   my($tag, $node, $start, $depth); # per-iteration scratch
-  
+
   if(defined($indent) && length($indent)) {
     $self->traverse(
       sub {
         ($node, $start, $depth) = @_;
         if(ref $node) { # it's an element
-           
+
            $tag = $node->{'_tag'};
-           
+
            if($start) { # on the way in
              if(
                 ($this_tag_tightenable = $HTML::Element::canTighten{$tag})
@@ -1523,17 +1515,17 @@ sub as_HTML {
                push(@html, $node->starttag($entities));
              }
              $last_tag_tightenable = $this_tag_tightenable;
-             
+
              ++$nonindentable_ancestors
                if $tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag};             ;
-             
+
            } elsif (not($empty_element_map->{$tag} or $omissible_map->{$tag})) {
              # on the way out
              if($tag eq 'pre' or $HTML::Tagset::isCDATA_Parent{$tag}) {
                --$nonindentable_ancestors;
                $last_tag_tightenable = $HTML::Element::canTighten{$tag};
                push @html, $node->endtag;
-               
+
              } else { # general case
                if(
                   ($this_tag_tightenable = $HTML::Element::canTighten{$tag})
@@ -1554,7 +1546,7 @@ sub as_HTML {
              }
            }
         } else {  # it's a text segment
-        
+
           $last_tag_tightenable = 0;  # I guess this is right
           HTML::Entities::encode_entities($node, $entities)
             # That does magic things if $entities is undef.
@@ -1588,8 +1580,7 @@ sub as_HTML {
         }
         1; # keep traversing
       }
-    );
-    
+    ); # End of parms to traverse()
   } else { # no indenting -- much simpler code
     $self->traverse(
       sub {
@@ -1615,16 +1606,21 @@ sub as_HTML {
           }
          1; # keep traversing
         }
-    );
+    ); # End of parms to traverse()
   }
-  
-  join('', @html, "\n");
+
+  if (defined $self->{_decl}) {
+    unshift @html, sprintf "<!%s>\n", $self->{_decl}->{text} ;
+  }
+
+
+  return join('', @html, "\n");
 }
 
 
-=item $h->as_text()
+=head2 $h->as_text()
 
-=item $h->as_text(skip_dels => 1)
+=head2 $h->as_text(skip_dels => 1)
 
 Returns a string consisting of only the text parts of the element's
 descendants.
@@ -1633,7 +1629,7 @@ Text under 'script' or 'style' elements is never included in what's
 returned.  If C<skip_dels> is true, then text content under "del"
 nodes is not included in what's returned.
 
-=item $h->as_trimmed_text(...)
+=head2 $h->as_trimmed_text(...)
 
 This is just like as_text(...) except that leading and trailing
 whitespace is deleted, and any internal whitespace is collapsed.
@@ -1644,7 +1640,6 @@ sub as_text {
   # Yet another iteratively implemented traverser
   my($this,%options) = @_;
   my $skip_dels = $options{'skip_dels'} || 0;
-  #print "Skip dels: $skip_dels\n";
   my(@pile) = ($this);
   my $tag;
   my $text = '';
@@ -1671,10 +1666,10 @@ sub as_trimmed_text {
   $text =~ s/\s+/ /g;
   return $text;
 }
- 
+
 sub as_text_trimmed { shift->as_trimmed_text(@_) } # alias, because I forget
 
-=item $h->as_XML()
+=head2 $h->as_XML()
 
 Returns a string representing in XML the element and its descendants.
 
@@ -1690,7 +1685,7 @@ sub as_XML {
   #my $indent_on = defined($indent) && length($indent);
   my @xml = ();
   my $empty_element_map = $self->_empty_element_map;
-  
+
   my($tag, $node, $start); # per-iteration scratch
   $self->traverse(
     sub {
@@ -1719,7 +1714,7 @@ sub as_XML {
        1; # keep traversing
       }
   );
-  
+
   join('', @xml, "\n");
 }
 
@@ -1732,7 +1727,7 @@ sub _xml_escape {  # DESTRUCTIVE (a.k.a. "in-place")
   return;
 }
 
-=item $h->as_Lisp_form()
+=head2 $h->as_Lisp_form()
 
 Returns a string representing the element and its descendants as a
 Lisp form.  Unsafe characters are encoded as octal escapes.
@@ -1757,7 +1752,7 @@ Current example output for a given element:
 
 sub as_Lisp_form {
   my @out;
-  
+
   my $sub;
   my $depth = 0;
   my(@list, $val);
@@ -1765,36 +1760,19 @@ sub as_Lisp_form {
     my $self = $_[0];
     @list = ('_tag', $self->{'_tag'});
     @list = () unless defined $list[-1]; # unlikely
-    
+
     for (sort keys %$self) { # predictable ordering
       next if $_ eq '_content' or $_ eq '_tag' or $_ eq '_parent' or $_ eq '/';
        # Leave the other private attributes, I guess.
       push @list, $_, $val if defined($val = $self->{$_}); # and !ref $val;
     }
-    
+
     for (@list) {
-      #if(!length $_) {
-      #  $_ = '""';
-      #} elsif(
-      #  $_ eq '0'
-      #  or (
-      #     m/^-?\d+(\.\d+)?$/s
-      #     and $_ ne '-0' # the strange case that that RE lets thru
-      #  ) or (
-      #     m/^-?\.\d+$/s
-      #  )
-      #) {
-      #  # No-op -- don't bother quoting numbers.
-      #  # Note: DOES accept strings like "0123" and ".123" as numbers!
-      #  #  
-      #} else {
         # octal-escape it
         s<([^\x20\x21\x23\x27-\x5B\x5D-\x7E])>
          <sprintf('\\%03o',ord($1))>eg;
         $_ = qq{"$_"};
-      #}
     }
-    
     push @out, ('  ' x $depth) . '(' . join ' ', splice @list;
     if(@{$self->{'_content'} || $nillio}) {
       $out[-1] .= " \"_content\" (\n";
@@ -1821,15 +1799,14 @@ sub as_Lisp_form {
     }
     return;
   };
-  
+
   $sub->($_[0]);
   undef $sub;
   return join '', @out;
 }
 
 
-sub format
-{
+sub format {
     my($self, $formatter) = @_;
     unless (defined $formatter) {
         require HTML::FormatText;
@@ -1840,11 +1817,11 @@ sub format
 
 
 
-=item $h->starttag() or $h->starttag($entities)
+=head2 $h->starttag() or $h->starttag($entities)
 
 Returns a string representing the complete start tag for the element.
-I.e., leading "<", tag name, attributes, and trailing ">".  Attributes
-values that don't consist entirely of digits are surrounded with
+I.e., leading "<", tag name, attributes, and trailing ">".
+All values are surrounded with
 double-quotes, and appropriate characters are encoded.  If C<$entities>
 is omitted or undef, I<all> unsafe characters are encoded as HTML
 entities.  See L<HTML::Entities> for details.  If you specify some
@@ -1854,18 +1831,15 @@ C<'&"E<gt>'> were specified for C<$entities>.)
 
 =cut
 
-sub starttag
-{
+sub starttag {
     my($self, $entities) = @_;
-    
+
     my $name = $self->{'_tag'};
-    
+
     return        $self->{'text'}        if $name eq '~literal';
-    
     return "<!" . $self->{'text'} . ">"  if $name eq '~declaration';
-    
     return "<?" . $self->{'text'} . ">"  if $name eq '~pi';
-    
+
     if($name eq '~comment') {
       if(ref($self->{'text'} || '') eq 'ARRAY') {
         # Does this ever get used?  And is this right?
@@ -1878,7 +1852,7 @@ sub starttag
         return "<!--" . $self->{'text'} . "-->"
       }
     }
-    
+
     my $tag = $html_uc ? "<\U$name" : "<\L$name";
     my $val;
     for (sort keys %$self) { # predictable ordering
@@ -1893,34 +1867,30 @@ sub starttag
         ) {
             $tag .= $html_uc ? " \U$_" : " \L$_";
         } else { # non-boolean attribute
-            if ($val !~ m/^[0-9]+$/s) { # quote anything not purely numeric
-              # Might as well double-quote everything, for simplicity's sake
-              HTML::Entities::encode_entities($val, $entities);
-              $val = qq{"$val"};
-            }
+            HTML::Entities::encode_entities($val, $entities);
+            $val = qq{"$val"};
             $tag .= $html_uc ? qq{ \U$_\E=$val} : qq{ \L$_\E=$val};
         }
     }
-    "$tag>";
+    if ( scalar $self->content_list == 0 && $self->_empty_element_map->{ $self->tag } ) {
+        return $tag . " />";
+    } else {
+        return $tag . ">";
+    }
 }
 
 
-# TODO: document?
-sub starttag_XML
-{
+sub starttag_XML {
     my($self) = @_;
      # and a third parameter to signal emptiness?
-    
+
     my $name = $self->{'_tag'};
-    
+
     return        $self->{'text'}        if $name eq '~literal';
-    
     return '<!' . $self->{'text'}. '>'   if $name eq '~declaration';
-    
     return "<?" . $self->{'text'} . "?>" if $name eq '~pi';
-    
+
     if($name eq '~comment') {
-      
       if(ref($self->{'text'} || '') eq 'ARRAY') {
         # Does this ever get used?  And is this right?
         $name = join(' ', @{$self->{'text'}});
@@ -1930,7 +1900,7 @@ sub starttag_XML
       $name =~ s/--/-&#45;/g; # can't have double --'s in XML comments
       return "<!-- $name -->";
     }
-    
+
     my $tag = "<$name";
     my $val;
     for (sort keys %$self) { # predictable ordering
@@ -1946,21 +1916,19 @@ sub starttag_XML
 
 
 
-=item $h->endtag()
+=head2 $h->endtag()
 
 Returns a string representing the complete end tag for this element.
 I.e., "</", tag name, and ">".
 
 =cut
 
-sub endtag
-{
+sub endtag {
     $html_uc ? "</\U$_[0]->{'_tag'}>" : "</\L$_[0]->{'_tag'}>";
 }
 
 # TODO: document?
-sub endtag_XML
-{
+sub endtag_XML {
     "</$_[0]->{'_tag'}>";
 }
 
@@ -1997,10 +1965,10 @@ sub traverse {
 
   Carp::croak "traverse can be called only as an object method"
    unless ref $start;
-  
+
   Carp::croak('must provide a callback for traverse()!')
    unless defined $callback and ref $callback;
-  
+
   # Elementary type-checking:
   my($c_pre, $c_post);
   if(UNIVERSAL::isa($callback, 'CODE')) {
@@ -2017,26 +1985,24 @@ sub traverse {
     Carp::croak("$callback is not a known kind of reference")
      unless ref($callback);
   }
-  
+
   my $empty_element_map = $start->_empty_element_map;
-  
+
   my(@C) = [$start]; # a stack containing lists of children
   my(@I) = (-1); # initial value must be -1 for each list
     # a stack of indexes to current position in corresponding lists in @C
   # In each of these, 0 is the active point
-  
+
   # scratch:
   my(
     $rv,   # return value of callback
     $this, # current node
     $content_r, # child list of $this
   );
-  
-  
+
   # THE BIG LOOP
   while(@C) {
     # Move to next item in this frame
-    #print "Loop: \@C has ", scalar(@C), " frames: @C\n";
     if(!defined($I[0]) or ++$I[0] >= @{$C[0]}) {
       # We either went off the end of this list, or aborted the list
       # So call the post-order callback:
@@ -2061,7 +2027,7 @@ sub traverse {
            0,               # 1: startflag (0 for post-order call)
            @I - 1,          # 2: depth
         );
-        
+
         if(defined($rv) and ref($rv) eq $travsignal_package) {
           $rv = $$rv; #deref
           if($rv eq 'ABORT') {
@@ -2079,17 +2045,16 @@ sub traverse {
             # should never happen
           }
         }
-        
-      } else {
-        #print "Oomph.  Callback suppressed\n";
+      }
+      else {
         shift @I;
         shift @C;
       }
       next;
     }
-    
+
     $this = $C[0][ $I[0] ];
-    
+
     if($c_pre) {
       if(defined $this and ref $this) { # element
         $rv = $c_pre->(
@@ -2135,9 +2100,9 @@ sub traverse {
         } elsif($rv eq 'PRUNE_UP') {
           $I[0] = undef;
           next;
-          
+
           # equivalent of last'ing out of the current child list.
-          
+
         # Used to have PRUNE_UP_SOFTLY and ABORT_SOFTLY here, but the code
         # for these was seriously upsetting, served no particularly clear
         # purpose, and could not, I think, be easily implemented with a
@@ -2150,7 +2115,7 @@ sub traverse {
       # else fall thru to meaning same as \'OK'.
     }
     # end of pre-order calling
-    
+
     # Now queue up content list for the current element...
     if(ref $this
        and
@@ -2170,17 +2135,13 @@ sub traverse {
 }
 
 
-=back
-
 =head1 SECONDARY STRUCTURAL METHODS
 
 These methods all involve some structural aspect of the tree;
 either they report some aspect of the tree's structure, or they involve
 traversal down the tree, or walking up the tree.
 
-=over 4
-
-=item $h->is_inside('tag', ...) or $h->is_inside($element, ...)
+=head2 $h->is_inside('tag', ...) or $h->is_inside($element, ...)
 
 Returns true if the $h element is, or is contained anywhere inside an
 element that is any of the ones listed, or whose tag name is any of
@@ -2207,7 +2168,7 @@ sub is_inside {
   0;
 }
 
-=item $h->is_empty()
+=head2 $h->is_empty()
 
 Returns true if $h has no content, i.e., has no elements or text
 segments under it.  In other words, this returns true if $h is a leaf
@@ -2226,14 +2187,13 @@ simply using the clearer exact equivalent:  not($h->content_list)
 
 =cut
 
-sub is_empty
-{
+sub is_empty {
   my $self = shift;
   !$self->{'_content'} || !@{$self->{'_content'}};
 }
 
 
-=item $h->pindex()
+=head2 $h->pindex()
 
 Return the index of the element in its parent's contents array, such
 that $h would equal
@@ -2247,7 +2207,6 @@ $h->pindex returns undef.
 
 =cut
 
-#'
 sub pindex {
   my $self = shift;
 
@@ -2261,7 +2220,7 @@ sub pindex {
 
 #--------------------------------------------------------------------------
 
-=item $h->left()
+=head2 $h->left()
 
 In scalar context: returns the node that's the immediate left sibling
 of $h.  If $h is the leftmost (or only) child of its parent (or has no
@@ -2303,7 +2262,7 @@ sub left {
   return;
 }
 
-=item $h->right()
+=head2 $h->right()
 
 In scalar context: returns the node that's the immediate right sibling
 of $h.  If $h is the rightmost (or only) child of its parent (or has
@@ -2351,7 +2310,7 @@ sub right {
 
 #--------------------------------------------------------------------------
 
-=item $h->address()
+=head2 $h->address()
 
 Returns a string representing the location of this node in the tree.
 The address consists of numbers joined by a '.', starting with '0',
@@ -2367,7 +2326,7 @@ As a bit of a special case, the address of the root is simply "0".
 I forsee this being used mainly for debugging, but you may
 find your own uses for it.
 
-=item $h->address($address)
+=head2 $h->address($address)
 
 This returns the node (whether element or text-segment) at
 the given address in the tree that $h is a part of.  (That is,
@@ -2416,21 +2375,20 @@ sub address {
       return undef if @stack and not ref $here;
         # we hit a text node when we expected a non-terminal element node
     }
-    
+
     return $here;
   }
 }
 
 
-=item $h->depth()
+=head2 $h->depth()
 
-Returns a number expressing $h's depth within its tree, i.e., how many
-steps away it is from the root.  If $h has no parent (i.e., is root),
+Returns a number expressing C<$h>'s depth within its tree, i.e., how many
+steps away it is from the root.  If C<$h> has no parent (i.e., is root),
 its depth is 0.
 
 =cut
 
-#'
 sub depth {
   my $here = $_[0];
   my $depth = 0;
@@ -2441,16 +2399,15 @@ sub depth {
 }
 
 
+=head2 $h->root()
 
-=item $h->root()
-
-Returns the element that's the top of $h's tree.  If $h is root, this
-just returns $h.  (If you want to test whether $h I<is> the root,
-instead of asking what its root is, just test not($h->parent).)
+Returns the element that's the top of C<$h>'s tree.  If C<$h> is
+root, this just returns C<$h>.  (If you want to test whether C<$h>
+I<is> the root, instead of asking what its root is, just test
+C<< not($h->parent) >>.)
 
 =cut
 
-#'
 sub root {
   my $here = my $root = shift;
   while(defined($here = $here->{'_parent'}) and ref($here)) {
@@ -2460,18 +2417,17 @@ sub root {
 }
 
 
-=item $h->lineage()
+=head2 $h->lineage()
 
-Returns the list of $h's ancestors, starting with its parent, and then
-that parent's parent, and so on, up to the root.  If $h is root, this
-returns an empty list.
+Returns the list of C<$h>'s ancestors, starting with its parent,
+and then that parent's parent, and so on, up to the root.  If C<$h>
+is root, this returns an empty list.
 
-If you simply want a count of the number of elements in $h's lineage,
+If you simply want a count of the number of elements in C<$h>'s lineage,
 use $h->depth.
 
 =cut
 
-#'
 sub lineage {
   my $here = shift;
   my @lineage;
@@ -2482,7 +2438,7 @@ sub lineage {
 }
 
 
-=item $h->lineage_tag_names()
+=head2 $h->lineage_tag_names()
 
 Returns the list of the tag names of $h's ancestors, starting
 with its parent, and that parent's parent, and so on, up to the
@@ -2491,7 +2447,6 @@ Example output: C<('em', 'td', 'tr', 'table', 'body', 'html')>
 
 =cut
 
-#'
 sub lineage_tag_names {
   my $here = my $start = shift;
   my @lineage_names;
@@ -2502,20 +2457,18 @@ sub lineage_tag_names {
 }
 
 
-=item $h->descendants()
+=head2 $h->descendants()
 
 In list context, returns the list of all $h's descendant elements,
 listed in pre-order (i.e., an element appears before its
 content-elements).  Text segments DO NOT appear in the list.
 In scalar context, returns a count of all such elements.
 
-=item $h->descendents()
+=head2 $h->descendents()
 
 This is just an alias to the C<descendants> method.
 
 =cut
-
-#'
 
 sub descendents { shift->descendants(@_) }
 
@@ -2552,14 +2505,14 @@ sub descendants {
 }
 
 
-=item $h->find_by_tag_name('tag', ...)
+=head2 $h->find_by_tag_name('tag', ...)
 
 In list context, returns a list of elements at or under $h that have
 any of the specified tag names.  In scalar context, returns the first
 (in pre-order traversal of the tree) such element found, or undef if
 none.
 
-=item $h->find('tag', ...)
+=head2 $h->find('tag', ...)
 
 This is just an alias to C<find_by_tag_name>.  (There was once
 going to be a whole find_* family of methods, but then look_down
@@ -2597,7 +2550,7 @@ sub find_by_tag_name {
   return;
 }
 
-=item $h->find_by_attribute('attribute', 'value')
+=head2 $h->find_by_attribute('attribute', 'value')
 
 In a list context, returns a list of elements at or under $h that have
 the specified attribute, and have the given value for that attribute.
@@ -2615,7 +2568,7 @@ sub find_by_attribute {
   my($self, $attribute, $value) = @_;
   Carp::croak "Attribute must be a defined value!" unless defined $attribute;
   $attribute =  $self->_fold_case($attribute);
-  
+
   my @matching;
   my $wantarray = wantarray;
   my $quit;
@@ -2645,7 +2598,7 @@ sub find_by_attribute {
 
 #--------------------------------------------------------------------------
 
-=item $h->look_down( ...criteria... )
+=head2 $h->look_down( ...criteria... )
 
 This starts at $h and looks thru its element descendants (in
 pre-order), looking for elements matching the criteria you specify.
@@ -2783,12 +2736,12 @@ sub look_down {
             (defined($val = $this->{ $c->[0] }))
               ? (
                   !defined $c->[1]  # actual is def, critval is undef => fail
-		     # allow regex matching
-		    # allow regex matching
-		  or (
-		  $c->[2] eq 'Regexp'
-		    ? $val !~ $c->[1]
-		    : ( ref $val ne $c->[2]
+                     # allow regex matching
+                    # allow regex matching
+                  or (
+                  $c->[2] eq 'Regexp'
+                    ? $val !~ $c->[1]
+                    : ( ref $val ne $c->[2]
                    # have unequal ref values => fail
                   or lc($val) ne $c->[1]
                    # have unequal lc string values => fail
@@ -2808,7 +2761,7 @@ sub look_down {
 }
 
 
-=item $h->look_up( ...criteria... )
+=head2 $h->look_up( ...criteria... )
 
 This is identical to $h->look_down, except that whereas $h->look_down
 basically scans over the list:
@@ -2863,10 +2816,10 @@ sub look_up {
             (defined($val = $this->{ $c->[0] }))
               ? (
                   !defined $c->[1]  # actual is def, critval is undef => fail
-		  or (
-		  $c->[2] eq 'Regexp'
-		    ? $val !~ $c->[1]
-		    : ( ref $val ne $c->[2]
+                  or (
+                  $c->[2] eq 'Regexp'
+                    ? $val !~ $c->[1]
+                    : ( ref $val ne $c->[2]
                    # have unequal ref values => fail
                   or lc($val) ne $c->[1]
                    # have unequal lc string values => fail
@@ -2888,13 +2841,13 @@ sub look_up {
 
 #--------------------------------------------------------------------------
 
-=item $h->traverse(...options...)
+=head2 $h->traverse(...options...)
 
 Lengthy discussion of HTML::Element's unnecessary and confusing
 C<traverse> method has been moved to a separate file:
 L<HTML::Element::traverse>
 
-=item $h->attr_get_i('attribute')
+=head2 $h->attr_get_i('attribute')
 
 In list context, returns a list consisting of the values of the given
 attribute for $self and for all its ancestors starting from $self and
@@ -2921,7 +2874,7 @@ will return the value 'es-MX'.
 
 If you call with multiple attribute names...
 
-=item $h->attr_get_i('a1', 'a2', 'a3')
+=head2 $h->attr_get_i('a1', 'a2', 'a3')
 
 ...in list context, this will return a list consisting of
 the values of these attributes which exist in $self and its ancestors.
@@ -2990,9 +2943,8 @@ sub attr_get_i {
   }
 }
 
-#--------------------------------------------------------------------------
 
-=item $h->tagname_map()
+=head2 $h->tagname_map()
 
 Scans across C<$h> and all its descendants, and makes a hash (a
 reference to which is returned) where each entry consists of a key
@@ -3041,9 +2993,8 @@ sub tagname_map {
   return \%map;
 }
 
-#--------------------------------------------------------------------------
 
-=item $h->extract_links() or $h->extract_links(@wantedTypes)
+=head2 $h->extract_links() or $h->extract_links(@wantedTypes)
 
 Returns links found by traversing the element and all of its children
 and looking for attributes (like "href" in an "a" element, or "src" in
@@ -3073,8 +3024,7 @@ only "a" and "img" elements, you could code it like this:
 =cut
 
 
-sub extract_links
-{
+sub extract_links {
     my $start = shift;
 
     my %wantType;
@@ -3090,10 +3040,10 @@ sub extract_links
       [
         sub { # pre-order call only
           $self = $_[0];
-  
+
           $tag = $self->{'_tag'};
           return 1 if $wantType && !$wantType{$tag};  # if we're selective
-  
+
           if(defined(  $link_attrs = $HTML::Element::linkElements{$tag}  )) {
             # If this is a tag that has any link attributes,
             #  look over possibly present link attributes,
@@ -3113,9 +3063,8 @@ sub extract_links
     \@links;
 }
 
-#--------------------------------------------------------------------------
 
-=item $h->simplify_pres
+=head2 $h->simplify_pres
 
 In text bits under PRE elements that are at/under $h, this routine
 nativizes all newlines, and expands all tabs.
@@ -3132,12 +3081,11 @@ to the next 8th column -- the usual way of expanding them.
 
 sub simplify_pres {
   my $pre = 0;
- 
+
   my $sub;
   my $line;
   $sub = sub {
     ++$pre if $_[0]->{'_tag'} eq 'pre';
-    #print "Under $_[0]{'_tag'} tag...  ($pre)\n";
     foreach my $it (@{ $_[0]->{'_content'} || return }) {
       if(ref $it) {
         $sub->( $it );  # recurse!
@@ -3145,25 +3093,25 @@ sub simplify_pres {
         #$it =~ s/(?:(?:\cm\cj*)|(?:\cj))/\n/g;
 
         $it =
-	  join "\n",
-  	  map {;
-  	    $line = $_;
-  	    while($line =~
+          join "\n",
+          map {;
+            $line = $_;
+            while($line =~
              s/^([^\t]*)(\t+)/$1.(" " x ((length($2)<<3)-(length($1)&7)))/e
               # Sort of adapted from Text::Tabs -- yes, it's hardwired-in that
               # tabs are at every EIGHTH column.
             ){}
             $line;
-	  }
-	  split /(?:(?:\cm\cj*)|(?:\cj))/, $it, -1
-	;
+          }
+          split /(?:(?:\cm\cj*)|(?:\cj))/, $it, -1
+        ;
       }
     }
     --$pre if $_[0]->{'_tag'} eq 'pre';
     return;
   };
   $sub->( $_[0] );
-  
+
   undef $sub;
   return;
 
@@ -3171,9 +3119,7 @@ sub simplify_pres {
 
 
 
-#--------------------------------------------------------------------------
-
-=item $h->same_as($i)
+=head2 $h->same_as($i)
 
 Returns true if $h and $i are both elements representing the same tree
 of elements, each with the same tag name, with the same explicit
@@ -3187,7 +3133,7 @@ with C<$segment1 eq $segment2>.
 =cut
 
 sub same_as {
-  die "same_as() takes only one argument: \$h->same_as(\$i)" unless @_ == 2;
+  die 'same_as() takes only one argument: $h->same_as($i)' unless @_ == 2;
   my($h,$i) = @_[0,1];
   die "same_as() can be called only as an object method" unless ref $h;
 
@@ -3197,28 +3143,27 @@ sub same_as {
 
   return 1 if $h eq $i;
    # special (if rare) case: anything is the same as... itself!
-  
+
   # assumes that no content lists in/under $h or $i contain subsequent
   #  text segments, like: ['foo', ' bar']
-  
+
   # compare attributes now.
   #print "Comparing tags of $h and $i...\n";
 
   return 0 unless $h->{'_tag'} eq $i->{'_tag'};
     # only significant attribute whose name starts with "_"
-  
+
   #print "Comparing attributes of $h and $i...\n";
   # Compare attributes, but only the real ones.
   {
     # Bear in mind that the average element has very few attributes,
     #  and that element names are rather short.
     # (Values are a different story.)
-    
+
+    # XXX I would think that /^[^_]/ would be faster, at least easier to read.
     my @keys_h = sort grep {length $_ and substr($_,0,1) ne '_'} keys %$h;
     my @keys_i = sort grep {length $_ and substr($_,0,1) ne '_'} keys %$i;
-    
-    #print '<', join(',', @keys_h), '> =?= <', join(',', @keys_i), ">\n";
-    
+
     return 0 unless @keys_h == @keys_i;
      # different number of real attributes?  they're different.
     for(my $x = 0; $x < @keys_h; ++$x) {
@@ -3229,14 +3174,14 @@ sub same_as {
        # People shouldn't be putting undef in attribute values, I think.
     }
   }
-  
+
   #print "Comparing children of $h and $i...\n";
   my $hcl = $h->{'_content'} || [];
   my $icl = $i->{'_content'} || [];
-  
+
   return 0 unless @$hcl == @$icl;
    # different numbers of children?  they're different.
-  
+
   if(@$hcl) {
     # compare each of the children:
     for(my $x = 0; $x < @$hcl; ++$x) {
@@ -3253,14 +3198,12 @@ sub same_as {
       }
     }
   }
-  
+
   return 1; # passed all the tests!
 }
 
 
-#--------------------------------------------------------------------------
-
-=item $h = HTML::Element->new_from_lol(ARRAYREF)
+=head2 $h = HTML::Element->new_from_lol(ARRAYREF)
 
 Resursively constructs a tree of nodes, based on the (non-cyclic)
 data structure represented by ARRAYREF, where that is a reference
@@ -3357,7 +3300,7 @@ You can even do fancy things with C<map>:
     ],
   );
 
-=item @elements = HTML::Element->new_from_lol(ARRAYREFS)
+=head2 @elements = HTML::Element->new_from_lol(ARRAYREFS)
 
 Constructs I<several> elements, by calling
 new_from_lol for every arrayref in the ARRAYREFS list.
@@ -3434,8 +3377,6 @@ sub new_from_lol {
     #print "Children: @children\n";
 
     if($class eq __PACKAGE__) {  # Special-case it, for speed:
-      #print "Special cased / [@attributes]\n";
-      
       %$node = (%$node, @attributes) if @attributes;
       #print join(' ', $node, ' ' , map("<$_>", %$node), "\n");
       if(@children) {
@@ -3472,9 +3413,7 @@ sub new_from_lol {
   }
 }
 
-#--------------------------------------------------------------------------
-
-=item $h->objectify_text()
+=head2 $h->objectify_text()
 
 This turns any text nodes under $h from mere text segments (strings)
 into real objects, pseudo-elements with a tag-name of "~text", and the
@@ -3490,7 +3429,7 @@ $h->objectify_text, perform whatever task that you needed that for,
 and then call $h->deobjectify_text before calling anything like
 $h->as_text.
 
-=item $h->deobjectify_text()
+=head2 $h->deobjectify_text()
 
 This undoes the effect of $h->objectify_text.  That is, it takes any
 "~text" pseudo-elements in the tree at/under $h, and deletes each one,
@@ -3553,7 +3492,7 @@ sub deobjectify_text {
       if(ref($c)) {
         if($c->{'_tag'} eq '~text') {
           $c = ($old_node = $c)->{'text'};
-	  if(ref($old_node) eq __PACKAGE__) { # common case
+          if(ref($old_node) eq __PACKAGE__) { # common case
             %$old_node = ();  # poof!
           } else {
             # play nice:
@@ -3570,27 +3509,26 @@ sub deobjectify_text {
   return undef;
 }
 
-#--------------------------------------------------------------------------
 
-=item $h->number_lists()
+=head2 $h->number_lists()
 
 For every UL, OL, DIR, and MENU element at/under $h, this sets a
 "_bullet" attribute for every child LI element.  For LI children of an
 OL, the "_bullet" attribute's value will be something like "4.", "d.",
 "D.", "IV.", or "iv.", depending on the OL element's "type" attribute.
 LI children of a UL, DIR, or MENU get their "_bullet" attribute set
-to "*".  
+to "*".
 There should be no other LIs (i.e., except as children of OL, UL, DIR,
 or MENU elements), and if there are, they are unaffected.
 
 =cut
 
 {
-  # The next three subs are basically copied from my module Number::Latin,
-  #  based on a one-liner by Abigail.  Yes, I could simply require that
-  #  module, and a roman numeral module too, but really, HTML-Tree already
-  #  has enough dependecies as it is; and anyhow, I don't need the functions
-  #  that do latin2int or roman2int.
+  # The next three subs are basically copied from Number::Latin,
+  # based on a one-liner by Abigail.  Yes, I could simply require that
+  # module, and a Roman numeral module too, but really, HTML-Tree already
+  # has enough dependecies as it is; and anyhow, I don't need the functions
+  # that do latin2int or roman2int.
   no integer;
 
   sub _int2latin {
@@ -3667,26 +3605,26 @@ sub number_lists {
 
       # Immeditately iterate over all children
       foreach my $c (@{ $this->{'_content'} || next}) {
-	next unless ref $c;
-	unshift @stack, $c;
-	if($c->{'_tag'} eq 'li') {
-	  $counter = $1 if(($c->{'value'} || '') =~ m<^\s*(\d{1,7})\s*$>s);
-	  $c->{'_bullet'} = $numberer->($counter) . '.';
-	  ++$counter;
-	}
+        next unless ref $c;
+        unshift @stack, $c;
+        if($c->{'_tag'} eq 'li') {
+          $counter = $1 if(($c->{'value'} || '') =~ m<^\s*(\d{1,7})\s*$>s);
+          $c->{'_bullet'} = $numberer->($counter) . '.';
+          ++$counter;
+        }
       }
 
     } elsif($tag eq 'ul' or $tag eq 'dir' or $tag eq 'menu') {
       # Immeditately iterate over all children
       foreach my $c (@{ $this->{'_content'} || next}) {
-	next unless ref $c;
-	unshift @stack, $c;
-	$c->{'_bullet'} = '*' if $c->{'_tag'} eq 'li';
+        next unless ref $c;
+        unshift @stack, $c;
+        $c->{'_bullet'} = '*' if $c->{'_tag'} eq 'li';
       }
 
     } else {
       foreach my $c (@{ $this->{'_content'} || next}) {
-	unshift @stack, $c if ref $c;
+        unshift @stack, $c if ref $c;
       }
     }
   }
@@ -3694,9 +3632,8 @@ sub number_lists {
 }
 
 
-#--------------------------------------------------------------------------
 
-=item $h->has_insane_linkage
+=head2 $h->has_insane_linkage
 
 This method is for testing whether this element or the elements
 under it have linkage attributes (_parent and _content) whose values
@@ -3728,7 +3665,7 @@ on the tree.
 sub has_insane_linkage {
   my @pile = ($_[0]);
   my($c, $i, $p, $this); # scratch
-  
+
   # Another iterative traverser; this time much simpler because
   #  only in pre-order:
   my %parent_of = ($_[0], 'TOP-OF-SCAN');
@@ -3750,7 +3687,7 @@ sub has_insane_linkage {
          if exists $parent_of{$c->[$i]};
         $parent_of{$c->[$i]} = ''.$this;
           # might as well just use the stringification of it.
-        
+
         return($c->[$i], "_parent attribute is wrong (not defined)")
          unless defined($p = $c->[$i]{'_parent'});
         return($c->[$i], "_parent attribute is wrong (nonref)")
@@ -3767,7 +3704,6 @@ sub has_insane_linkage {
   return; #okay
 }
 
-#==========================================================================
 
 sub _asserts_fail {  # to be run on trusted documents only
   my(@pile) = ($_[0]);
@@ -3807,13 +3743,7 @@ sub _asserts_fail {  # to be run on trusted documents only
   return @errors;
 }
 
-
-#==========================================================================
 1;
-
-__END__
-
-=back
 
 =head1 BUGS
 
@@ -3860,7 +3790,7 @@ contents only thru $obj->attr or more specific methods.
 
 * You should think twice before completely overriding any of the
 methods that HTML::Element provides.  (Overriding with a method that
-calls the superclass method is not so bad, tho.)
+calls the superclass method is not so bad, though.)
 
 =head1 SEE ALSO
 
@@ -3869,7 +3799,7 @@ and, for the morbidly curious, L<HTML::Element::traverse>.
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas, 1999-2001 Sean M. Burke.
+Copyright 1995-1998 Gisle Aas, 1999-2001 Sean M. Burke, 2005 Andy Lester.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -3880,69 +3810,10 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Original author Gisle Aas E<lt>gisle@aas.noE<gt>; current maintainer
-Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
+Currently maintained by Andy Lester C<< <andy at petdance.com> >>.
+
+Original authors: Gisle Aas and Sean Burke.
 
 =cut
 
-If you've read the code this far, you need some hummus:
-
-EASY HUMMUS
-(Adapted from a recipe by Ralph Baccash (1937-2000))
-
-INGREDIENTS:
-
-  - The juice of two smallish lemons
-     (adjust to taste, and depending on how juicy the lemons are)
-  - 6 tablespoons of tahini
-  - 4 tablespoons of olive oil
-  - 5 big cloves of garlic, chopped fine
-  - salt to taste
-  - pepper to taste
-  - onion powder to taste
-  - pinch of coriander powder  (optional)
-  - big pinch of cumin
-Then:
-  - 2 16oz cans of garbanzo beans
-  - parsley, or Italian parsley
-  - a bit more olive oil
-
-PREPARATION:
-
-Drain one of the cans of garbanzos, discarding the juice.  Drain the
-other, reserving the juice.
-
-Peel the garbanzos (just pressing on each a bit until the skin slides
-off).  It will take time to peel all the garbanzos.  It's optional, but
-it makes for a smoother hummus.  Incidentally, peeling seems much
-faster and easier if done underwater -- i.e., if the beans are in a
-bowl under an inch or so of water.
-
-Now, in a blender, combine everything in the above list, starting at the
-top, stopping at (but including) the cumin.  Add one-third of the can's
-worth of the juice that you reserved.  Blend very well.  (For lack of a
-blender, I've done okay using a Braun hand-mixer.)
-
-Start adding the beans little by little, and keep blending, and
-increasing speeds until very smooth.  If you want to make the mix less
-viscous, add more of the reserved juice.  Adjust the seasoning as
-needed.
-
-Cover with chopped parsley, and a thin layer of olive oil.  The parsley
-is more or less optional, but the olive oil is necessary, to keep the
-hummus from discoloring.  Possibly sprinkle with paprika or red chile
-flakes.
-
-Serve at about room temperature, with warm pitas.  Possible garnishes
-include olives, peperoncini, tomato wedges.
-
-Variations on this recipe consist of adding or substituting other
-spices.  The garbanzos, tahini, lemon juice, and oil are the only really
-core ingredients, and note that their quantities are approximate.
-
-For more good recipes along these lines, see:
-  Karaoglan, Aida.  1992.  /Food for the Vegetarian/.  Interlink Books,
-  New York.  ISBN 1-56656-105-1.
-  http://www.amazon.com/exec/obidos/ASIN/1566561051/
-
-# End
+1;

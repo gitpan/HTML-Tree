@@ -1,9 +1,36 @@
-
 package HTML::Tree;
-$VERSION = $VERSION = 3.19_01;
-  # This is where the dist gets its version from.
 
-# Basically just a happy alias to HTML::TreeBuilder
+=head1 NAME
+
+HTML::Tree - overview of HTML::TreeBuilder et al
+
+=head1 VERSION
+
+Version 3.19_02
+
+=cut
+
+use vars qw( $VERSION );
+$VERSION = '3.19_02';
+
+=head1 SYNOPSIS
+
+    use HTML::TreeBuilder;
+    my $tree = HTML::TreeBuilder->new();
+    $tree->parse_file($filename);
+
+        # Then do something with the tree, using HTML::Element
+        # methods -- for example:
+
+    $tree->dump
+
+        # Finally:
+
+    $tree->delete;
+
+=cut
+
+# HTML::Tree is basically just a happy alias to HTML::TreeBuilder.
 use HTML::TreeBuilder ();
 
 sub new {
@@ -18,26 +45,6 @@ sub new_from_content {
   shift; unshift @_, 'HTML::TreeBuilder';
   goto &HTML::TreeBuilder::new_from_content;
 }
-
-1;  
-
-__END__
-
-=head1 NAME
-
-HTML::Tree - overview of HTML::TreeBuilder et al
-
-=head1 SYNOPSIS
-
-  use HTML::TreeBuilder;
-  my $tree = HTML::TreeBuilder->new();
-  $tree->parse_file($filename);
-   #
-   # Then do something with the tree, using HTML::Element
-   # methods -- for example $tree->dump
-   #
-   # Then:
-  $tree->delete;
 
 =head1 DESCRIPTION
 
@@ -55,43 +62,95 @@ class HTML::Element.
 If you find that you do not properly understand the documentation
 for HTML::TreeBuilder and HTML::Element, it may be because you are
 unfamiliar with tree-shaped data structures, or with object-oriented
-modules in general.  I have written some articles for I<The Perl
-Journal> (C<www.tpj.com>) that seek to provide that background:
-my article "A User's View of Object-Oriented Modules" in TPJ17;
-my article "Trees" in TPJ18;
-and
-my article "Scanning HTML" in TPJ19.
+modules in general. Sean Burke has written some articles for
+I<The Perl Journal> (C<www.tpj.com>) that seek to provide that background.
 The full text of those articles is contained in this distribution, as:
 
-L<HTML::Tree::AboutObjects|HTML::Tree::AboutObjects>
--- article: "User's View of Object-Oriented Modules"
+=over 4
 
-L<HTML::Tree::AboutTrees|HTML::Tree::AboutTrees>
--- article: "Trees"
+=item L<HTML::Tree::AboutObjects|HTML::Tree::AboutObjects>
 
-L<HTML::Tree::Scanning|HTML::Tree::Scanning>
--- article: "Scanning HTML"
+"User's View of Object-Oriented Modules" from TPJ17.
+
+=item L<HTML::Tree::AboutTrees|HTML::Tree::AboutTrees>
+
+"Trees" from TPJ18
+
+=item L<HTML::Tree::Scanning|HTML::Tree::Scanning>
+
+"Scanning HTML" from TPJ19
+
+=back
 
 Readers already familiar with object-oriented modules and tree-shaped
 data structures should read just the last article.  Readers without
 that background should read the first, then the second, and then the
 third.
 
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc HTML::Tree
+
+    You can also look for information at:
+
+=over 4
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/HTML-Tree>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/HTML-Tree>
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=HTML-Tree>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/HTML-Tree>
+
+=back
+
 =head1 SEE ALSO
 
 L<HTML::TreeBuilder>, L<HTML::Element>, L<HTML::Tagset>,
-L<HTML::Parser>
+L<HTML::Parser>, L<HTML::DOMbo>
 
-L<HTML::DOMbo>
-
-The book I<Perl & LWP> by me, Sean M. Burke, published by
+The book I<Perl & LWP> by Sean M. Burke published by
 O'Reilly and Associates, 2002.  ISBN: 0-596-00178-9
 
 It has several chapters to do with HTML processing in general,
 and HTML-Tree specifically.  There's more info at:
 
-  http://www.oreilly.com/catalog/perllwp/
-  http://www.amazon.com/exec/obidos/ASIN/0596001789
+    http://www.oreilly.com/catalog/perllwp/
+
+    http://www.amazon.com/exec/obidos/ASIN/0596001789
+
+=head1 SOURCE REPOSITORY
+
+HTML::Tree is maintained in Subversion hosted at perl.org.
+
+    http://svn.perl.org/modules/HTML-Tree
+
+The latest development work is always at:
+
+    http://svn.perl.org/modules/HTML-Tree/trunk
+
+Any patches sent should be diffed against this repository.
+
+=head1 ACKNOWLEDGEMENTS
+
+Thanks to Gisle Aas and Sean Burke for their original work.
+Thanks to Terrence Brannon for patches.
+
+=head1 AUTHOR
+
+Original HTML-Tree author Gisle Aas.  Handed off to Sean M. Burke.
+Currently maintained by Andy Lester C<< <andy at petdance.com> >>.
 
 =head1 COPYRIGHT
 
@@ -112,10 +171,6 @@ the hope that they will be useful, but without any warranty; without
 even the implied warranty of merchantability or fitness for a
 particular purpose.
 
-=head1 AUTHOR
-
-Original HTML-Tree author Gisle Aas E<lt>gisle@aas.noE<gt>; current
-maintainer Sean M. Burke, E<lt>sburke@cpan.orgE<gt>
-
 =cut
 
+1;
