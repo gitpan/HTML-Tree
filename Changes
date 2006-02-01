@@ -1,3 +1,12 @@
+Changelog for HTML-Tree
+
+3.19_04 Wed Feb  1 09:57:35 PST 2006
+    [FIXES]
+    * Modified starttag() so that it could render a literal HTML::Element
+      correctly. Added a test case for this in tag-rendering.t
+      Thanks to Terrence Brannon.
+
+
 3.19_03 Fri Nov 25 22:20:51 CST 2005
     [THINGS THAT MAY BREAK YOUR CODE]
     * The store_declarations() method has been restored, but defaults

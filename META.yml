@@ -1,10 +1,10 @@
 --- #YAML:1.0
 name:                HTML-Tree
-version:             3.19_03
+version:             3.19_04
 abstract:            build and scan parse-trees of HTML
 license:             unknown
 generated_by:        ExtUtils::MakeMaker version 6.30_01
-author:              Sean M. Burke (sburke@cpan.org)
+author:              Andy Lester <andy@petdance.com>
 distribution_type:   module
 requires:     
     HTML::Parser:                  2.19
