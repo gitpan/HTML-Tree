@@ -6,12 +6,12 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-Version 3.20
+Version 3.21
 
 =cut
 
 use vars qw( $VERSION );
-$VERSION = '3.20';
+$VERSION = '3.21';
 
 =head1 SYNOPSIS
 
@@ -1282,7 +1282,7 @@ sub delete_ignorable_whitespace {
         # thru this sibling list.  I doubt it actually matters, tho.
         next;
       }
-      next unless $sibs->[$i] =~ m<^\s+$>s; # it's /all/ whitespace
+      next if $sibs->[$i] =~ m<[^\n\r\f\t ]>s; # it's /all/ whitespace
 
       print "Under $ptag whose canTighten ",
           "value is ", 0 + $HTML::Element::canTighten{$ptag}, ".\n"
@@ -1559,7 +1559,7 @@ sub as_HTML {
             push @html, $node; # say no go
           } else {
             if($last_tag_tightenable) {
-              $node =~ s<\s+>< >s;
+              $node =~ s<[\n\r\f\t ]+>< >s;
               #$node =~ s< $><>s;
               $node =~ s<^ ><>s;
               push
@@ -1661,9 +1661,9 @@ sub as_text {
 
 sub as_trimmed_text {
   my $text = shift->as_text(@_);
-  $text =~ s/\s+$//s;
-  $text =~ s/^\s+//s;
-  $text =~ s/\s+/ /g;
+  $text =~ s/[\n\r\f\t ]+$//s;
+  $text =~ s/^[\n\r\f\t ]+//s;
+  $text =~ s/[\n\r\f\t ]+/ /g;
   return $text;
 }
 
@@ -3809,7 +3809,8 @@ and, for the morbidly curious, L<HTML::Element::traverse>.
 
 =head1 COPYRIGHT
 
-Copyright 1995-1998 Gisle Aas, 1999-2001 Sean M. Burke, 2005 Andy Lester.
+Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke, 2005 Andy Lester,
+2006 Pete Krawczyk.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -3820,9 +3821,9 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Currently maintained by Andy Lester C<< <andy at petdance.com> >>.
+Currently maintained by Pete Krawczyk C<< <petek@cpan.org> >>
 
-Original authors: Gisle Aas and Sean Burke.
+Original authors: Gisle Aas, Sean Burke and Andy Lester.
 
 =cut
 
