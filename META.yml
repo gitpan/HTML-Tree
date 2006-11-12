@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         HTML-Tree
-version:      3.22
+version:      3.23
 version_from: lib/HTML/Tree.pm
 installdirs:  site
 requires:
