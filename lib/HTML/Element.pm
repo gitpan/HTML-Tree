@@ -6,12 +6,12 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-Version 3.21
+Version 3.22
 
 =cut
 
 use vars qw( $VERSION );
-$VERSION = '3.21';
+$VERSION = '3.22';
 
 =head1 SYNOPSIS
 
@@ -586,7 +586,7 @@ C<'_parent', >I<[object_value]>C< , '_tag', 'em', 'lang', 'en-US',
 
 Like all_attr, but only returns the names of the attributes.
 
-Example output of C<< $h->all_attr() >> :
+Example output of C<< $h->all_attr_names() >> :
 C<'_parent', '_tag', 'lang', '_content', >.
 
 =cut
@@ -715,8 +715,7 @@ list of C<$h>.  This means you can say things concise things like:
   $body->push_content(
     ['br'],
     ['ul',
-      map ['li', $_]
-      qw(Peaches Apples Pears Mangos)
+      map ['li', $_], qw(Peaches Apples Pears Mangos)
     ]
   );
 
@@ -1454,9 +1453,13 @@ sub dump {
 Returns a string representing in HTML the element and its
 descendants.  The optional argument C<$entities> specifies a string of
 the entities to encode.  For compatibility with previous versions,
-specify C<'E<lt>E<gt>&'> here.  If omitted or undef, I<all> unsafe
+specify C<'E<lt>E<gt>&'> here.  If empty or undef, I<all> unsafe
 characters are encoded as HTML entities.  See L<HTML::Entities> for
-details.
+details.  
+
+L<HTML::Entities> currently has no explicit way to have no entity
+encoding.  One suggested workaround is to use C<"\0"> as the entity
+list.
 
 If $indent_char is specified and defined, the HTML to be output is
 intented, using the string you specify (which you probably should
@@ -1720,9 +1723,19 @@ sub as_XML {
 
 
 sub _xml_escape {  # DESTRUCTIVE (a.k.a. "in-place")
+  # Five required escapes: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
+  # We allow & if it's part of a valid escape already: http://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references
   foreach my $x (@_) {
-    $x =~ s<([^\x20\x21\x23\x27-\x3b\x3d\x3F-\x5B\x5D-\x7E])>
-           <'&#'.(ord($1)).';'>seg;
+    $x =~ s/(  			# Escape...
+		< |		# Less than, or
+		> |     	# Greater than, or
+		' |     	# Single quote, or 
+		" |     	# Double quote, or
+		&(?!    	# An ampersand that isn't followed by...
+		  (\#\d+; | 		# A hash mark, digits and semicolon, or
+		   \#x[\da-f]+; | 	# A hash mark, "x", hex digits and semicolon, or
+		   [A-Za-z0-9]+; ))	# alphanums (not underscore, hence not \w) and a semicolon
+	     )/'&#'.ord($1).";"/sgex;  # And replace them with their XML digit counterpart 
   }
   return;
 }
@@ -2753,7 +2766,7 @@ sub look_down {
                     ? $val !~ $c->[1]
                     : ( ref $val ne $c->[2]
                    # have unequal ref values => fail
-                  or lc($val) ne $c->[1]
+                  or lc($val) ne lc($c->[1])
                    # have unequal lc string values => fail
                   ))
                 )
@@ -3824,6 +3837,8 @@ merchantability or fitness for a particular purpose.
 Currently maintained by Pete Krawczyk C<< <petek@cpan.org> >>
 
 Original authors: Gisle Aas, Sean Burke and Andy Lester.
+
+Thanks to Mark-Jason Dominus for a POD suggestion.
 
 =cut
 
