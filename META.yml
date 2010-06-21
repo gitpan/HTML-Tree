@@ -1,12 +1,44 @@
-# http://module-build.sourceforge.net/META-spec.html
-#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
-name:         HTML-Tree
-version:      3.23
-version_from: lib/HTML/Tree.pm
-installdirs:  site
+---
+name: HTML-Tree
+version: 3.23_1
+author:
+  - 'Jeff Fearn <Jeff.Fearn@gmail.com>'
+abstract: build and scan parse-trees of HTML
+license: perl
+resources:
+  license: ~
 requires:
-    HTML::Parser:                  3.46
-    HTML::Tagset:                  3.02
-
-distribution_type: module
-generated_by: ExtUtils::MakeMaker version 6.30
+  HTML::Parser: 3.46
+  HTML::Tagset: 3.02
+build_requires:
+  Devel::Cover: 0
+  HTML::Parser: 3.46
+  HTML::Tagset: 3.02
+  Module::Build: 0
+  Test::Exception: 0
+  Test::More: 0
+  Test::Perl::Critic: 0
+  Test::Pod::Coverage: 0
+provides:
+  HTML::AsSubs:
+    file: lib/HTML/AsSubs.pm
+    version: 1.16
+  HTML::Element:
+    file: lib/HTML/Element.pm
+    version: 3.23_1
+  HTML::Element::traverse:
+    file: lib/HTML/Element/traverse.pm
+    version: 0
+  HTML::Parse:
+    file: lib/HTML/Parse.pm
+    version: 2.71
+  HTML::Tree:
+    file: lib/HTML/Tree.pm
+    version: 3.23_1
+  HTML::TreeBuilder:
+    file: lib/HTML/TreeBuilder.pm
+    version: 3.23_1
+generated_by: Module::Build version 0.32
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2

@@ -22,7 +22,7 @@ HTML::AsSubs - functions that construct a HTML syntax tree
 
 This module exports functions that can be used to construct various
 HTML elements. The functions are named after the tags of the
-correponding HTML element and are all written in lower case. If the
+corresponding HTML element and are all written in lower case. If the
 first argument is a hash reference then it will be used to initialize the
 attributes of this element. The remaining arguments are regarded as
 content.
@@ -70,6 +70,7 @@ L<HTML::Element>, L<XML::Generator>
 
 =cut
 
+use warnings;
 use strict;
 use vars qw(@ISA $VERSION @EXPORT);
 
@@ -83,32 +84,40 @@ $VERSION = '1.16';
 #  elements".  TODO:?? make something that make functions that just
 #  wrap XML::Generator calls?
 
+=head2 html head title base link meta isindex nextid script style body h1 h2 h3 h4 h5 h6 p pre div blockquote a img br hr ol ul dir menu li dl dt dd dfn cite code em kbd samp strong var address span b i u tt center font big small strike sub sup table tr td th caption form input select option textarea object applet param map area frame frameset noframe
+
+A bunch of methods for creating tags.
+
+=cut
+
 use vars qw(@TAGS);
 @TAGS = qw(html
-	   head title base link meta isindex nextid script style
-	   body h1 h2 h3 h4 h5 h6 p pre div blockquote
-	   a img br hr
-	   ol ul dir menu li
-	   dl dt dd
-	   dfn cite code em kbd samp strong var address 
-	   b i u tt
-           center font big small strike
-           sub sup
-	   table tr td th caption
-	   form input select option textarea
-           object applet param
-           map area
-           frame frameset noframe
-	  );
+    head title base link meta isindex nextid script style
+    body h1 h2 h3 h4 h5 h6 p pre div blockquote
+    a img br hr
+    ol ul dir menu li
+    dl dt dd
+    dfn cite code em kbd samp strong var address span
+    b i u tt
+    center font big small strike
+    sub sup
+    table tr td th caption
+    form input select option textarea
+    object applet param
+    map area
+    frame frameset noframe
+);
 
 for (@TAGS) {
-	my $code;
-	$code = "sub $_ { _elem('$_', \@_); }\n" ;
-	push(@EXPORT, $_);
-	eval $code;
-	if ($@) {
-		die $@;
-	}
+    my $code;
+    $code = "sub $_ { _elem('$_', \@_); }\n";
+    push( @EXPORT, $_ );
+## no critic
+    eval $code;
+## use critic
+    if ($@) {
+        die $@;
+    }
 }
 
 =head1 Private Functions
@@ -121,12 +130,11 @@ as parameters.
 
 =cut
 
-sub _elem
-{
+sub _elem {
     my $tag = shift;
     my $attributes;
-    if (@_ and defined $_[0] and ref($_[0]) eq "HASH") {
-	$attributes = shift;
+    if ( @_ and defined $_[0] and ref( $_[0] ) eq "HASH" ) {
+        $attributes = shift;
     }
     my $elem = HTML::Element->new( $tag, %$attributes );
     $elem->push_content(@_);
