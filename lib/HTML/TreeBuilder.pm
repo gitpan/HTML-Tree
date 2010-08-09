@@ -5,7 +5,7 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.23_1';
+$VERSION = '3.23_2';
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -926,7 +926,8 @@ sub warning {
         else {
 
             # the call came from Parser -- just ignore origtext
-            @stop = ();
+            # except in a table ignore unmatched table tags RT #59980
+            @stop = $tag =~ /^t[hdr]\z/ ? 'table' : ();
         }
 
         #my($indent);

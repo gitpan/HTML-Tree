@@ -6,7 +6,7 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-Version 3.23_1
+Version 3.23_2
 
 =cut
 
@@ -17,7 +17,7 @@ use HTML::Tagset   ();
 use integer;    # vroom vroom!
 
 use vars qw( $VERSION );
-$VERSION = '3.23_1';
+$VERSION = '3.23_2';
 
 # This contorls encoding entities on output.
 # When set entities won't be re-encoded.
@@ -186,11 +186,26 @@ Constants for signalling back to the traverser
 
 =cut
 
-sub ABORT        {$ABORT}
-sub PRUNE        {$PRUNE}
-sub PRUNE_SOFTLY {$PRUNE_SOFTLY}
-sub OK           {$OK}
-sub PRUNE_UP     {$PRUNE_UP}
+## Comments from Father Chrysostomos RT #58880
+## The sole purpose for empty parentheses after a sub name is to make it
+## parse as a 0-ary (nihilary?) function. I.e., ABORT+1 should parse as
+## ABORT()+1, not ABORT(+1). The parentheses also tell perl that it can
+### be inlined.
+##Deparse is really useful for demonstrating this:
+##$ perl -MO=Deparse,-p -e 'sub ABORT {7} print ABORT+8'
+# Vs
+# perl -MO=Deparse,-p -e 'sub ABORT() {7} print ABORT+8'
+#
+# With the parentheses, it not only makes it parse as a term.
+# It even resolves the constant at compile-time, making the code run faster.
+
+## no critic
+sub ABORT ()        {$ABORT}
+sub PRUNE ()        {$PRUNE}
+sub PRUNE_SOFTLY () {$PRUNE_SOFTLY}
+sub OK ()           {$OK}
+sub PRUNE_UP ()     {$PRUNE_UP}
+## use critic
 
 $html_uc = 0;
 
@@ -1712,7 +1727,7 @@ sub as_HTML {
 
 =head2 $h->as_text()
 
-=head2 $h->as_text(skip_dels => 1)
+=head2 $h->as_text(skip_dels => 1, extra_chars => '\xA0')
 
 Returns a string consisting of only the text parts of the element's
 descendants.
@@ -1727,7 +1742,8 @@ This is just like as_text(...) except that leading and trailing
 whitespace is deleted, and any internal whitespace is collapsed.
 
 This will not remove hard spaces, unicode spaces, or any other
-non ASCII white space.
+non ASCII white space unless you supplye the extra characters as
+a string argument. e.g. $h->as_trimmed_text(extra_chars => '\xA0')
 
 =cut
 
@@ -1756,11 +1772,15 @@ sub as_text {
     return $text;
 }
 
+# extra_chars added for RT #26436
 sub as_trimmed_text {
-    my $text = shift->as_text(@_);
-    $text =~ s/[\n\r\f\t ]+$//s;
-    $text =~ s/^[\n\r\f\t ]+//s;
-    $text =~ s/[\n\r\f\t ]+/ /g;
+    my ( $this, %options ) = @_;
+    my $text = $this->as_text(%options);
+    my $extra_chars = $options{'extra_chars'} || '';
+
+    $text =~ s/[\n\r\f\t$extra_chars ]+$//s;
+    $text =~ s/^[\n\r\f\t$extra_chars ]+//s;
+    $text =~ s/[\n\r\f\t$extra_chars ]+/ /g;
     return $text;
 }
 
@@ -1822,9 +1842,9 @@ sub as_XML {
 
 sub _xml_escape {
 
-    # DESTRUCTIVE (a.k.a. "in-place")
-    # Five required escapes: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
-    # We allow & if it's part of a valid escape already: http://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references
+# DESTRUCTIVE (a.k.a. "in-place")
+# Five required escapes: http://www.w3.org/TR/2006/REC-xml11-20060816/#syntax
+# We allow & if it's part of a valid escape already: http://www.w3.org/TR/2006/REC-xml11-20060816/#sec-references
     foreach my $x (@_) {
 
         # In strings with no encoded entities all & should be encoded.
@@ -1834,7 +1854,7 @@ sub _xml_escape {
                 (\#\d+; |                 # A hash mark, digits and semicolon, or
                 \#x[\da-f]+; |            # A hash mark, "x", hex digits and semicolon, or
                 $START_CHAR$NAME_CHAR+; ) # A valid unicode entity name and semicolon
-           )/&amp;/gx;                    # Needs to be escaped to amp
+           )/&amp;/gx;    # Needs to be escaped to amp
         }
         else {
             $x =~ s/&/&amp;/g;
