@@ -5,7 +5,7 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '3.23_4';
+$VERSION = '4.0';
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -28,7 +28,6 @@ BEGIN {
     #      $HTML::TreeBuilder::DEBUG = 4}  use HTML::TreeBuilder'
     # and see for yourself (substituting whatever value you want for $DEBUG
     # there).
-## BUGBUG why is this so ugly? why not just a normal sub?
 ## no critic
     if ( defined &DEBUG ) {
 
