@@ -6,7 +6,7 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-Version 4.0
+Version 4.1
 
 =cut
 
@@ -17,7 +17,7 @@ use HTML::Tagset   ();
 use integer;    # vroom vroom!
 
 use vars qw( $VERSION );
-$VERSION = '4.0';
+$VERSION = '4.1';
 
 # This contorls encoding entities on output.
 # When set entities won't be re-encoded.
@@ -1554,8 +1554,8 @@ sub as_HTML {
                 ( $node, $start, $depth ) = @_;
                 if ( ref $node ) {      # it's an element
 
-                    # detect bogus classes. RT #35948
-                    $node->isa( $self->element_class )
+                    # detect bogus classes. RT #35948, #61673
+                    $node->can('starttag')
                         or Carp::confess( "Object of class "
                             . ref($node)
                             . " cannot be processed by HTML::Element" );
@@ -1826,7 +1826,7 @@ sub as_XML {
                     foreach my $attr ( $node->all_attr_names() ) {
                         Carp::croak(
                             "$tag has an invalid attribute name '$attr'")
-                            unless ( $self->_valid_name($attr) );
+                            unless ( $attr eq '/' || $self->_valid_name($attr) );
                     }
 
                     if ( $empty_element_map->{$tag}

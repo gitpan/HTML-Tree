@@ -1,12 +1,12 @@
 ---
 name: HTML-Tree
-version: 4.0
+version: 4.1
 author:
   - 'Jeff Fearn <Jeff.Fearn@gmail.com>'
 abstract: build and scan parse-trees of HTML
 license: perl
 resources:
-  license: ~
+  license: http://dev.perl.org/licenses/
 requires:
   HTML::Parser: 3.46
   HTML::Tagset: 3.02
@@ -23,7 +23,7 @@ provides:
     version: 1.16
   HTML::Element:
     file: lib/HTML/Element.pm
-    version: 4.0
+    version: 4.1
   HTML::Element::traverse:
     file: lib/HTML/Element/traverse.pm
     version: 0
@@ -32,10 +32,10 @@ provides:
     version: 2.71
   HTML::Tree:
     file: lib/HTML/Tree.pm
-    version: 4.0
+    version: 4.1
   HTML::TreeBuilder:
     file: lib/HTML/TreeBuilder.pm
-    version: 4.0
+    version: 4.1
 generated_by: Module::Build version 0.32
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.2.html
