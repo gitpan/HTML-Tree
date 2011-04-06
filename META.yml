@@ -1,42 +1,44 @@
 ---
-name: HTML-Tree
-version: 4.1
+abstract: 'Class for objects that represent HTML elements'
 author:
-  - 'Jeff Fearn <Jeff.Fearn@gmail.com>'
-abstract: build and scan parse-trees of HTML
-license: perl
-resources:
-  license: http://dev.perl.org/licenses/
-requires:
-  HTML::Parser: 3.46
-  HTML::Tagset: 3.02
-  perl: 5.8.0
+  - 'Jeff Fearn <jfearn@cpan.org>'
 build_requires:
   HTML::Parser: 3.46
   HTML::Tagset: 3.02
   Module::Build: 0
   Test::Exception: 0
   Test::More: 0
+configure_requires:
+  Module::Build: 0.36
+generated_by: 'Module::Build version 0.3603'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: HTML-Tree
 provides:
   HTML::AsSubs:
     file: lib/HTML/AsSubs.pm
-    version: 1.16
+    version: 4.2
   HTML::Element:
     file: lib/HTML/Element.pm
-    version: 4.1
+    version: 4.2
   HTML::Element::traverse:
     file: lib/HTML/Element/traverse.pm
-    version: 0
+    version: 4.2
   HTML::Parse:
     file: lib/HTML/Parse.pm
-    version: 2.71
+    version: 4.2
   HTML::Tree:
     file: lib/HTML/Tree.pm
-    version: 4.1
+    version: 4.2
   HTML::TreeBuilder:
     file: lib/HTML/TreeBuilder.pm
-    version: 4.1
-generated_by: Module::Build version 0.32
-meta-spec:
-  url: http://module-build.sourceforge.net/META-spec-v1.2.html
-  version: 1.2
+    version: 4.2
+requires:
+  HTML::Parser: 3.46
+  HTML::Tagset: 3.02
+  perl: v5.8.0
+resources:
+  license: http://dev.perl.org/licenses/
+version: 4.2

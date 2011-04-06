@@ -78,7 +78,7 @@ require HTML::Element;
 require Exporter;
 @ISA = qw(Exporter);
 
-$VERSION = '1.16';
+$VERSION = 4.2;
 
 # Problem: exports so damned much.  Has no concept of "export only HTML4
 #  elements".  TODO:?? make something that make functions that just

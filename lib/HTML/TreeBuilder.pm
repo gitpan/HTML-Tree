@@ -5,7 +5,6 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 use vars qw(@ISA $VERSION $DEBUG);
-$VERSION = '4.1';
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -59,6 +58,7 @@ use HTML::Tagset 3.02 ();
 use HTML::Element ();
 use HTML::Parser  ();
 @ISA = qw(HTML::Element HTML::Parser);
+$VERSION = 4.2;
 
 # This looks schizoid, I know.
 # It's not that we ARE an element AND a parser.
@@ -2143,8 +2143,16 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Currently maintained by Pete Krawczyk C<< <petek@cpan.org> >>
+Current Author:
+	Jeff Fearn C<< <jfearn@cpan.org> >>.
 
-Original authors: Gisle Aas, Sean Burke and Andy Lester.
+Original HTML-Tree author:
+	Gisle Aas.
+
+Former Authors:
+	Sean M. Burke.
+	Andy Lester.
+	Pete Krawczyk C<< <petek@cpan.org> >>.
+
 
 =cut

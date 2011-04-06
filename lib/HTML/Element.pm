@@ -6,7 +6,7 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-Version 4.1
+Version 4.2
 
 =cut
 
@@ -17,7 +17,7 @@ use HTML::Tagset   ();
 use integer;    # vroom vroom!
 
 use vars qw( $VERSION );
-$VERSION = '4.1';
+$VERSION = 4.2;
 
 # This contorls encoding entities on output.
 # When set entities won't be re-encoded.
@@ -4193,9 +4193,16 @@ merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
 
-Currently maintained by Pete Krawczyk C<< <petek@cpan.org> >>
+Current Author:
+	Jeff Fearn C<< <jfearn@cpan.org> >>.
 
-Original authors: Gisle Aas, Sean Burke and Andy Lester.
+Original HTML-Tree author:
+	Gisle Aas.
+
+Former Authors:
+	Sean M. Burke.
+	Andy Lester.
+	Pete Krawczyk C<< <petek@cpan.org> >>.
 
 Thanks to Mark-Jason Dominus for a POD suggestion.
 

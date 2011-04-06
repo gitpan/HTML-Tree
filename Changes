@@ -1,4 +1,13 @@
 Changelog for HTML-Tree
+4.2
+    [FIXES]
+    * Tied all $VERSION to HTML::Element to ensure latest package is used
+      for all modules. RT #66110
+    * Moved perlcritic tests to xt/author
+    [DOCUMENTATION]
+    * Added text and link to "Perl and LWP" book.
+    * Fix Authors is all PM files.
+
 4.1 Mon Oct 25 2010
     [FIXES]
     * '/' is a valid attribute (pull from tokuhirom) (RT #61809)

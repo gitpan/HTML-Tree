@@ -97,10 +97,16 @@ without any warranty; without even the implied warranty of
 merchantability or fitness for a particular purpose.
 
 =head1 AUTHOR
+Current Author:
+	Jeff Fearn C<< <jfearn@cpan.org> >>.
 
-Currently maintained by Pete Krawczyk C<< <petek@cpan.org> >>
+Original HTML-Tree author:
+	Gisle Aas.
 
-Original authors: Gisle Aas, Sean Burke and Andy Lester.
+Former Authors:
+	Sean M. Burke.
+	Andy Lester.
+	Pete Krawczyk C<< <petek@cpan.org> >>.
 
 =cut
 
@@ -123,7 +129,7 @@ $WARN           = 0;
 
 require HTML::TreeBuilder;
 
-$VERSION = '2.71';
+$VERSION = 4.2;
 
 sub parse_html {
     my $p = $_[1];
