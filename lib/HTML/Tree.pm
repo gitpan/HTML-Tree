@@ -1,41 +1,16 @@
 package HTML::Tree;
 
-=head1 NAME
-
-HTML::Tree - build and scan parse-trees of HTML
-
-=head1 VERSION
-
-4.2
-
-=cut
+# ABSTRACT: build and scan parse-trees of HTML
 
 # HTML::Tree is basically just a happy alias to HTML::TreeBuilder.
 
 use warnings;
 use strict;
 
+our $VERSION = '4.900'; # TRIAL VERSION from OurPkgVersion
+
 use HTML::TreeBuilder ();
 
-use vars qw( $VERSION );
-$VERSION = 4.2;
-
-=head1 SYNOPSIS
-
-    use HTML::TreeBuilder;
-    my $tree = HTML::TreeBuilder->new();
-    $tree->parse_file($filename);
-
-        # Then do something with the tree, using HTML::Element
-        # methods -- for example:
-
-    $tree->dump
-
-        # Finally:
-
-    $tree->delete;
-
-=cut
 
 sub new {
     shift;
@@ -55,8 +30,44 @@ sub new_from_content {
     goto &HTML::TreeBuilder::new_from_content;
 }
 
+sub new_from_url {
+    shift;
+    unshift @_, 'HTML::TreeBuilder';
+    goto &HTML::TreeBuilder::new_from_url;
+}
+
 1;
+
+
+
 __END__
+=pod
+
+=head1 NAME
+
+HTML::Tree - build and scan parse-trees of HTML
+
+=head1 VERSION
+
+B<This is a development release for testing purposes only.>
+This document describes version 4.900 of
+HTML::Tree, released June 1, 2012
+as part of HTML-Tree.
+
+=head1 SYNOPSIS
+
+    use HTML::TreeBuilder;
+    my $tree = HTML::TreeBuilder->new();
+    $tree->parse_file($filename);
+
+        # Then do something with the tree, using HTML::Element
+        # methods -- for example:
+
+    $tree->dump
+
+        # Finally:
+
+    $tree->delete;
 
 =head1 DESCRIPTION
 
@@ -103,19 +114,17 @@ third.
 
 Redirects to HTML::TreeBuilder::new
 
-=cut
-
 =head2 new_from_file
 
 Redirects to HTML::TreeBuilder::new_from_file
-
-=cut
 
 =head2 new_from_content
 
 Redirects to HTML::TreeBuilder::new_from_content
 
-=cut
+=head2 new_from_url
+
+Redirects to HTML::TreeBuilder::new_from_url
 
 =head1 SUPPORT
 
@@ -162,15 +171,10 @@ and HTML-Tree specifically.  There's more info at:
 
 =head1 SOURCE REPOSITORY
 
-HTML::Tree is maintained in Subversion hosted at perl.org.
+HTML-Tree is now maintained using Git.  The main public repository is
+L<< http://github.com/madsen/HTML-Tree >>.
 
-    http://svn.perl.org/modules/HTML-Tree
-
-The latest development work is always at:
-
-    http://svn.perl.org/modules/HTML-Tree/trunk
-
-Any patches sent should be diffed against this repository.
+The best way to send a patch is to make a pull request there.
 
 =head1 ACKNOWLEDGEMENTS
 
@@ -185,23 +189,47 @@ Terrence Brannon, Gordon Lack, Chris Madsen and Ricardo Signes.
 
 =head1 AUTHOR
 
-Current Author:
-	Jeff Fearn C<< <jfearn@cpan.org> >>.
+Current maintainers:
+
+=over
+
+=item * Christopher J. Madsen S<C<< <perl AT cjmweb.net> >>>
+
+=item * Jeff Fearn S<C<< <jfearn AT cpan.org> >>>
+
+=back
 
 Original HTML-Tree author:
-	Gisle Aas.
 
-Former Authors:
-	Sean M. Burke.
-	Andy Lester.
-	Pete Krawczyk C<< <petek@cpan.org> >>.
+=over
 
-=head1 COPYRIGHT
+=item * Gisle Aas
 
-Copyright 1995-1998 Gisle Aas; 1999-2004 Sean M. Burke; 
-2005 Andy Lester; 2006 Pete Krawczyk.  (Except the articles
-contained in HTML::Tree::AboutObjects, HTML::Tree::AboutTrees, and
-HTML::Tree::Scanning, which are all copyright 2000 The Perl Journal.)
+=back
+
+Former maintainers:
+
+=over
+
+=item * Sean M. Burke
+
+=item * Andy Lester
+
+=item * Pete Krawczyk S<C<< <petek AT cpan.org> >>>
+
+=back
+
+You can follow or contribute to HTML-Tree's development at
+L<< http://github.com/madsen/HTML-Tree >>.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke,
+2005 Andy Lester, 2006 Pete Krawczyk, 2010 Jeff Fearn,
+2012 Christopher J. Madsen.
+(Except the articles contained in HTML::Tree::AboutObjects,
+HTML::Tree::AboutTrees, and HTML::Tree::Scanning, which are all
+copyright 2000 The Perl Journal.)
 
 Except for those three TPJ articles, the whole HTML-Tree distribution,
 of which this file is a part, is free software; you can redistribute

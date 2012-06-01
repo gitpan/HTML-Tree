@@ -1,10 +1,14 @@
 package HTML::TreeBuilder;
 
+# ABSTRACT: Parser that builds a HTML syntax tree
+
 use warnings;
 use strict;
 use integer;    # vroom vroom!
 use Carp ();
-use vars qw(@ISA $VERSION $DEBUG);
+use vars qw(@ISA $DEBUG);
+
+our $VERSION = '4.900'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -56,9 +60,8 @@ use HTML::Entities ();
 use HTML::Tagset 3.02 ();
 
 use HTML::Element ();
-use HTML::Parser  ();
-@ISA = qw(HTML::Element HTML::Parser);
-$VERSION = 4.2;
+use HTML::Parser 3.46 ();
+@ISA     = qw(HTML::Element HTML::Parser);
 
 # This looks schizoid, I know.
 # It's not that we ARE an element AND a parser.
@@ -109,8 +112,24 @@ sub new_from_content {    # from any number of scalars
     return $new;
 }
 
+sub new_from_url {                     # should accept anything that LWP does.
+    my $class = shift;
+    Carp::croak("new_from_url takes only one argument")
+        unless @_ == 1;
+    Carp::croak("new_from_url is a class method only")
+        if ref $class;
+    my $new = $class->new();
+
+    require LWP::UserAgent;
+    # RECOMMEND PREREQ: LWP::UserAgent 5.802
+    LWP::UserAgent->VERSION( 5.802 ); # HTTP::Message decoded_content method
+    my $fetch_result = LWP::UserAgent->new->get( $_[0] );
+    $new->parse( $fetch_result->decoded_content );
+    return $new;
+}
+
 # TODO: document more fully?
-sub parse_content {                    # from any number of scalars
+sub parse_content {    # from any number of scalars
     my $tree = shift;
     my $retval;
     foreach my $whunk (@_) {
@@ -723,14 +742,14 @@ sub warning {
            #  insert_element because 1) we don't want it as _pos, but instead
            #  right under $self, and 2), more importantly, that we don't want
            #  this inserted at the /end/ of $self's content_list, but instead
-           #  in the middle of it, specifiaclly right before the body element.
+           #  in the middle of it, specifically right before the body element.
            #
                 my $c    = $self->{'_content'} || die "Contentless root?";
                 my $body = $self->{'_body'}    || die "Where'd my BODY go?";
                 for ( my $i = 0; $i < @$c; ++$i ) {
                     if ( $c->[$i] eq $body ) {
                         splice( @$c, $i, 0, $self->{'_pos'} = $pos = $e );
-                        $e->{'_parent'} = $self;
+                        HTML::Element::_weaken($e->{'_parent'} = $self);
                         $already_inserted = 1;
                         print $indent,
                             " * inserting 'frameset' right before BODY.\n"
@@ -1642,13 +1661,24 @@ sub disembowel { $_[0]->guts(1) }
 #--------------------------------------------------------------------------
 1;
 
+
 __END__
+=pod
 
 =head1 NAME
 
 HTML::TreeBuilder - Parser that builds a HTML syntax tree
 
+=head1 VERSION
+
+B<This is a development release for testing purposes only.>
+This document describes version 4.900 of
+HTML::TreeBuilder, released June 1, 2012
+as part of HTML-Tree.
+
 =head1 SYNOPSIS
+
+  use HTML::TreeBuilder 5 -weak; # Ensure weak references in use
 
   foreach my $file_name (@ARGV) {
     my $tree = HTML::TreeBuilder->new; # empty tree
@@ -1657,9 +1687,9 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
     $tree->dump; # a method we inherit from HTML::Element
     print "And here it is, bizarrely rerendered as HTML:\n",
       $tree->as_HTML, "\n";
-    
+
     # Now that we're done with it, we must destroy it.
-    $tree = $tree->delete;
+    # $tree = $tree->delete; # Not required with weak references
   }
 
 =head1 DESCRIPTION
@@ -1685,11 +1715,10 @@ document into the tree $tree.
 3. do whatever you need to do with the syntax tree, presumably
 involving traversing it looking for some bit of information in it,
 
-4. and finally, when you're done with the tree, call $tree->delete() to
-erase the contents of the tree from memory.  This kind of thing
-usually isn't necessary with most Perl objects, but it's necessary for
-TreeBuilder objects.  See L<HTML::Element|HTML::Element> for a more verbose
-explanation of why this is the case.
+4. previous versions of HTML::TreeBuilder required you to call
+C<< $tree->delete() >> to erase the contents of the tree from memory
+when you're done with the tree.  This is not normally required anymore.
+See L<HTML::Element/"Weak References"> for details.
 
 =head1 METHODS AND ATTRIBUTES
 
@@ -1730,6 +1759,18 @@ call new, and then set options, before calling parse_file).  Example
 usages: HTML::TreeBuilder->new_from_content(@lines), or
 HTML::TreeBuilder->new_from_content($content)
 
+=item $root = HTML::TreeBuilder->new_from_url($url)
+
+This "shortcut" constructor combines constructing a new object (with
+the "new" method, below), loading L<LWP::UserAgent>, fetching the
+specified URL, and calling C<< $new->parse( $response->decoded_content) >>.
+Returns the new object.  Note that this provides no way of setting any
+parse options like store_comments.
+
+You must have installed LWP::UserAgent for this method to work.  LWP
+is not installed automatically, because it's a large set of modules
+and you might not need it.
+
 =item $root = HTML::TreeBuilder->new()
 
 This creates a new HTML::TreeBuilder object.  This method takes no
@@ -1741,7 +1782,7 @@ attributes.
 see.  Current versions of HTML::Parser can take a filespec, or a
 filehandle object, like *FOO, or some object from class IO::Handle,
 IO::File, IO::Socket) or the like.
-I think you should check that a given file exists I<before> calling 
+I think you should check that a given file exists I<before> calling
 $root->parse_file($filespec).]
 
 =item $root->parse(...)
@@ -1766,8 +1807,8 @@ Takes the exact same arguments as C<< $root->parse() >>.
 
 =item $root->delete()
 
-[An important method inherited from L<HTML::Element|HTML::Element>, which
-see.]
+[A previously important method inherited from L<HTML::Element|HTML::Element>,
+which see.]
 
 =item $root->elementify()
 
@@ -1871,7 +1912,7 @@ Default is false (entities will be decoded.)
 =item $root->ignore_unknown(value)
 
 This attribute controls whether unknown tags should be represented as
-elements in the parse tree, or whether they should be ignored. 
+elements in the parse tree, or whether they should be ignored.
 Default is true (to ignore unknown tags.)
 
 =item $root->ignore_text(value)
@@ -2118,41 +2159,64 @@ while still producing the bug in question, and I<then> email me that
 mini-document I<and> the code you're using to parse it, to the HTML::Tree
 bug queue at C<bug-html-tree at rt.cpan.org>.
 
-Include a note as to how it 
+Include a note as to how it
 parses (presumably including its $tree->dump output), and then a
 I<careful and clear> explanation of where you think the parser is
 going astray, and how you would prefer that it work instead.
 
 =head1 SEE ALSO
 
-L<HTML::Tree>; L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
+L<HTML::Tree>, L<HTML::Parser>, L<HTML::Element>, L<HTML::Tagset>
 
 L<HTML::DOMbo>
 
-=head1 COPYRIGHT
+=head1 AUTHOR
 
-Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke, 2005 Andy Lester,
-2006 Pete Krawczyk, 2010 Jeff Fearn.
+Current maintainers:
+
+=over
+
+=item * Christopher J. Madsen S<C<< <perl AT cjmweb.net> >>>
+
+=item * Jeff Fearn S<C<< <jfearn AT cpan.org> >>>
+
+=back
+
+Original HTML-Tree author:
+
+=over
+
+=item * Gisle Aas
+
+=back
+
+Former maintainers:
+
+=over
+
+=item * Sean M. Burke
+
+=item * Andy Lester
+
+=item * Pete Krawczyk S<C<< <petek AT cpan.org> >>>
+
+=back
+
+You can follow or contribute to HTML-Tree's development at
+L<< http://github.com/madsen/HTML-Tree >>.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright 1995-1998 Gisle Aas, 1999-2004 Sean M. Burke,
+2005 Andy Lester, 2006 Pete Krawczyk, 2010 Jeff Fearn,
+2012 Christopher J. Madsen.
 
 This library is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 
-This program is distributed in the hope that it will be useful, but
-without any warranty; without even the implied warranty of
-merchantability or fitness for a particular purpose.
-
-=head1 AUTHOR
-
-Current Author:
-	Jeff Fearn C<< <jfearn@cpan.org> >>.
-
-Original HTML-Tree author:
-	Gisle Aas.
-
-Former Authors:
-	Sean M. Burke.
-	Andy Lester.
-	Pete Krawczyk C<< <petek@cpan.org> >>.
-
+The programs in this library are distributed in the hope that they
+will be useful, but without any warranty; without even the implied
+warranty of merchantability or fitness for a particular purpose.
 
 =cut
+
