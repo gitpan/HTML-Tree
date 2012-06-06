@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '4.900'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '4.901'; # TRIAL VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -50,8 +50,8 @@ HTML::Tree - build and scan parse-trees of HTML
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 4.900 of
-HTML::Tree, released June 1, 2012
+This document describes version 4.901 of
+HTML::Tree, released June 6, 2012
 as part of HTML-Tree.
 
 =head1 SYNOPSIS
@@ -110,21 +110,27 @@ data structures should read just the last article.  Readers without
 that background should read the first, then the second, and then the
 third.
 
+=head1 METHODS
+
+All these methods simply redirect to the corresponding method in
+HTML::TreeBuilder.  It's more efficient to use HTML::TreeBuilder
+directly, and skip loading HTML::Tree at all.
+
 =head2 new
 
-Redirects to HTML::TreeBuilder::new
+Redirects to L<HTML::TreeBuilder/new>.
 
 =head2 new_from_file
 
-Redirects to HTML::TreeBuilder::new_from_file
+Redirects to L<HTML::TreeBuilder/new_from_file>.
 
 =head2 new_from_content
 
-Redirects to HTML::TreeBuilder::new_from_content
+Redirects to L<HTML::TreeBuilder/new_from_content>.
 
 =head2 new_from_url
 
-Redirects to HTML::TreeBuilder::new_from_url
+Redirects to L<HTML::TreeBuilder/new_from_url>.
 
 =head1 SUPPORT
 

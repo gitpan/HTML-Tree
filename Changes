@@ -1,5 +1,25 @@
 Changelog for HTML-Tree
 
+4.901    2012-06-06
+   Trial Release by Christopher J. Madsen
+
+    [THINGS THAT MAY BREAK YOUR CODE OR TESTS]
+    * new_from_file now dies if the file cannot be opened.  $! records
+      the specific problem.  (Previously, you got a tree with a few
+      implicit elements.)
+    * Some methods normally returning a scalar could return the empty
+      list in certain circumstances.  This has been corrected.  The
+      affected methods are: address, deobjectify_text, detach, is_inside,
+      & pindex.
+
+    [FIXES]
+    * new_from_url did not call eof after parsing
+
+    [DOCUMENTATION]
+    * Improve SEE ALSO for HTML::TreeBuilder
+    * General documentation cleanup
+
+
 4.900    2012-06-01
    Trial Release by Christopher J. Madsen
 
@@ -41,7 +61,6 @@ Changelog for HTML-Tree
       tests expecting &#00; style encoding.
     * Attribute names are now validated in as_XML and invalid names will
       cause an error.
-
 
     [FIXES]
     * Optionally empty tags with content now have close tag. (RT #49932 #41806)
@@ -290,7 +309,6 @@ Changelog for HTML-Tree
    HTML::TreeBuilder -- added blurb for /Perl & LWP/
    Also added a few tweaks to do better with XHTML parsing.
    Added guts() and disembowel() methods, for parsing document fragments.
-
 
    TODO: desperately need to add tests to t/
 
