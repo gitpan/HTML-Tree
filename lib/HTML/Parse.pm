@@ -8,7 +8,7 @@ use 5.008;
 use warnings;
 use strict;
 
-our $VERSION = '4.901'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '4.902'; # TRIAL VERSION from OurPkgVersion
 
 use vars qw(@ISA @EXPORT
     $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN
@@ -63,7 +63,7 @@ HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 4.901 of
+This document describes version 4.902 of
 HTML::Parse, released June 6, 2012
 as part of HTML-Tree.
 

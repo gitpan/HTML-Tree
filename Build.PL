@@ -19,7 +19,7 @@ my $builder = inc::My_Build->new(
   },
   'recommends' => {
     'HTML::FormatText' => '0',
-    'LWP::UserAgent' => '5.802'
+    'LWP::UserAgent' => '5.815'
   },
   'requires' => {
     'Carp' => '0',

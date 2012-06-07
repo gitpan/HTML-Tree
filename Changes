@@ -1,5 +1,12 @@
 Changelog for HTML-Tree
 
+4.902    2012-06-06
+   Trial Release by Christopher J. Madsen
+
+    [THINGS THAT MAY BREAK YOUR CODE OR TESTS]
+    * new_from_url now dies if the request fails or the response is not HTML
+
+
 4.901    2012-06-06
    Trial Release by Christopher J. Madsen
 

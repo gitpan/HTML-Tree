@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '4.901'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '4.902'; # TRIAL VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -50,7 +50,7 @@ HTML::Tree - build and scan parse-trees of HTML
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 4.901 of
+This document describes version 4.902 of
 HTML::Tree, released June 6, 2012
 as part of HTML-Tree.
 

@@ -23,7 +23,7 @@ no_index:
     - t
 recommends:
   HTML::FormatText: 0
-  LWP::UserAgent: 5.802
+  LWP::UserAgent: 5.815
 requires:
   Carp: 0
   Exporter: 0
@@ -35,7 +35,7 @@ requires:
   perl: 5.008
 resources:
   repository: git://github.com/madsen/HTML-Tree.git
-version: 4.901
+version: 4.902
 x_Dist_Zilla:
   plugins:
     -
