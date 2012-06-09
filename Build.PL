@@ -11,6 +11,7 @@ my $builder = inc::My_Build->new(
   'build_requires' => {
     'Encode' => '0',
     'Module::Build' => '0.2808',
+    'Test::Fatal' => '0',
     'Test::More' => '0',
     'base' => '0'
   },
