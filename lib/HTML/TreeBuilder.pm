@@ -7,7 +7,7 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 
-our $VERSION = '4.903'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.00'; # VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1682,10 +1682,9 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 
 =head1 VERSION
 
-B<This is a development release for testing purposes only.>
-This document describes version 4.903 of
-HTML::TreeBuilder, released June 8, 2012
-as part of HTML-Tree.
+This document describes version 5.00 of
+HTML::TreeBuilder, released June 12, 2012
+as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
 
@@ -1888,6 +1887,10 @@ it.  Returns the new object.  Note that this provides no way of
 setting any parse options like C<store_comments> (for that, call C<new>, and
 then set options, before calling C<parse_file>).  See the notes (below)
 on parameters to L</parse_file>.
+
+If HTML::TreeBuilder is unable to read the file, then C<new_from_file>
+dies.  The error can also be found in C<$!>.  (This behavior is new in
+HTML-Tree 5. Previous versions returned a tree with only implicit elements.)
 
 =head2 new_from_content
 

@@ -8,7 +8,7 @@ package HTML::Element::traverse;
 use warnings;
 use strict;
 
-our $VERSION = '4.903'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.00'; # VERSION from OurPkgVersion
 
 use HTML::Element ();
 1;
@@ -23,10 +23,9 @@ HTML::Element::traverse - discussion of HTML::Element's traverse method
 
 =head1 VERSION
 
-B<This is a development release for testing purposes only.>
-This document describes version 4.903 of
-HTML::Element::traverse, released June 8, 2012
-as part of HTML-Tree.
+This document describes version 5.00 of
+HTML::Element::traverse, released June 12, 2012
+as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
 

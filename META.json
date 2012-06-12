@@ -60,7 +60,7 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "repository" : {
          "type" : "git",
@@ -68,7 +68,7 @@
          "web" : "http://github.com/madsen/HTML-Tree"
       }
    },
-   "version" : "4.903",
+   "version" : "5.00",
    "x_Dist_Zilla" : {
       "plugins" : [
          {
@@ -265,7 +265,7 @@
       "zilla" : {
          "class" : "Dist::Zilla::Dist::Builder",
          "config" : {
-            "is_trial" : "1"
+            "is_trial" : "0"
          },
          "version" : "4.300018"
       }

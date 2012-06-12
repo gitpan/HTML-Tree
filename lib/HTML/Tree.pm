@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '4.903'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.00'; # VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -49,10 +49,9 @@ HTML::Tree - build and scan parse-trees of HTML
 
 =head1 VERSION
 
-B<This is a development release for testing purposes only.>
-This document describes version 4.903 of
-HTML::Tree, released June 8, 2012
-as part of HTML-Tree.
+This document describes version 5.00 of
+HTML::Tree, released June 12, 2012
+as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
 
@@ -157,6 +156,13 @@ L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=HTML-Tree>
 =item * Search CPAN
 
 L<http://search.cpan.org/dist/HTML-Tree>
+
+=item * Stack Overflow
+
+L<http://stackoverflow.com/questions/tagged/html-tree>
+
+If you have a question about how to use HTML-Tree, Stack Overflow is
+the place to ask it.  Make sure you tag it both C<perl> and C<html-tree>.
 
 =back
 
