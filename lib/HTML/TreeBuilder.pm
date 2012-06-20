@@ -7,7 +7,7 @@ use strict;
 use integer;    # vroom vroom!
 use Carp ();
 
-our $VERSION = '5.00'; # VERSION from OurPkgVersion
+our $VERSION = '5.01'; # VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1682,8 +1682,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 
 =head1 VERSION
 
-This document describes version 5.00 of
-HTML::TreeBuilder, released June 12, 2012
+This document describes version 5.01 of
+HTML::TreeBuilder, released June 20, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS

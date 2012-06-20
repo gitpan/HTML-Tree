@@ -68,7 +68,7 @@
          "web" : "http://github.com/madsen/HTML-Tree"
       }
    },
-   "version" : "5.00",
+   "version" : "5.01",
    "x_Dist_Zilla" : {
       "plugins" : [
          {
@@ -195,6 +195,11 @@
             "class" : "Dist::Zilla::Plugin::Git::Push",
             "name" : "@Git/Push",
             "version" : "1.121010"
+         },
+         {
+            "class" : "Dist::Zilla::Plugin::Git::CheckFor::CorrectBranch",
+            "name" : "GitBranch",
+            "version" : "0.004"
          },
          {
             "class" : "Dist::Zilla::Plugin::RunExtraTests",

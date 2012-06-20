@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.00'; # VERSION from OurPkgVersion
+our $VERSION = '5.01'; # VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -2796,8 +2796,8 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-This document describes version 5.00 of
-HTML::Element, released June 12, 2012
+This document describes version 5.01 of
+HTML::Element, released June 20, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
