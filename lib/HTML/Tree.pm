@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '5.02'; # VERSION from OurPkgVersion
+our $VERSION = '5.03'; # VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -38,9 +38,8 @@ sub new_from_url {
 
 1;
 
-
-
 __END__
+
 =pod
 
 =head1 NAME
@@ -49,8 +48,8 @@ HTML::Tree - build and scan parse-trees of HTML
 
 =head1 VERSION
 
-This document describes version 5.02 of
-HTML::Tree, released June 27, 2012
+This document describes version 5.03 of
+HTML::Tree, released September 22, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
@@ -255,4 +254,3 @@ will be useful, but without any warranty; without even the implied
 warranty of merchantability or fitness for a particular purpose.
 
 =cut
-

@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.02'; # VERSION from OurPkgVersion
+our $VERSION = '5.03'; # VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -937,7 +937,7 @@ sub as_HTML {
                         $last_tag_tightenable = $this_tag_tightenable;
 
                         ++$nonindentable_ancestors
-                            if $tag eq 'pre'
+                            if $tag eq 'pre' or $tag eq 'textarea'
                                 or $HTML::Tagset::isCDATA_Parent{$tag};
 
                     }
@@ -948,7 +948,7 @@ sub as_HTML {
                     {
 
                         # on the way out
-                        if (   $tag eq 'pre'
+                        if (   $tag eq 'pre' or $tag eq 'textarea'
                             or $HTML::Tagset::isCDATA_Parent{$tag} )
                         {
                             --$nonindentable_ancestors;
@@ -1119,7 +1119,8 @@ sub as_text {
 sub as_trimmed_text {
     my ( $this, %options ) = @_;
     my $text = $this->as_text(%options);
-    my $extra_chars = $options{'extra_chars'} || '';
+    my $extra_chars = defined $options{'extra_chars'}
+                        ? $options{'extra_chars'} : '';
 
     $text =~ s/[\n\r\f\t$extra_chars ]+$//s;
     $text =~ s/^[\n\r\f\t$extra_chars ]+//s;
@@ -2788,6 +2789,7 @@ sub element_class {
 1;
 
 __END__
+
 =pod
 
 =head1 NAME
@@ -2796,8 +2798,8 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-This document describes version 5.02 of
-HTML::Element, released June 27, 2012
+This document describes version 5.03 of
+HTML::Element, released September 22, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
@@ -3571,10 +3573,20 @@ a reference to that hash.
 =head2 as_text
 
   $s = $h->as_text();
-  $s = $h->as_text(skip_dels => 1, extra_chars => '\xA0');
+  $s = $h->as_text(skip_dels => 1);
 
 Returns a string consisting of only the text parts of the element's
-descendants.
+descendants.  Any whitespace inside the element is included unchanged,
+but whitespace not in the tree is never added.  But remember that
+whitespace may be ignored or compacted by HTML::TreeBuilder during
+parsing (depending on the value of the C<ignore_ignorable_whitespace>
+and C<no_space_compacting> attributes).  Also, since whitespace is
+never added during parsing,
+
+  HTML::TreeBuilder->new_from_content("<p>a</p><p>b</p>")
+                   ->as_text;
+
+returns C<"ab">, not C<"a b"> or C<"a\nb">.
 
 Text under C<< <script> >> or C<< <style> >> elements is never
 included in what's returned.  If C<skip_dels> is true, then text
@@ -3583,6 +3595,7 @@ content under C<< <del> >> nodes is not included in what's returned.
 =head2 as_trimmed_text
 
   $s = $h->as_trimmed_text(...);
+  $s = $h->as_trimmed_text(extra_chars => '\xA0'); # remove &nbsp;
   $s = $h->as_text_trimmed(...); # alias
 
 This is just like C<as_text(...)> except that leading and trailing
@@ -3590,7 +3603,10 @@ whitespace is deleted, and any internal whitespace is collapsed.
 
 This will not remove non-breaking spaces, Unicode spaces, or any other
 non-ASCII whitespace unless you supply the extra characters as
-a string argument. e.g. C<< $h->as_trimmed_text(extra_chars => '\xA0') >>
+a string argument (e.g. C<< $h->as_trimmed_text(extra_chars => '\xA0') >>).
+C<extra_chars> may be any string that can appear inside a character
+class, including ranges like C<a-z>, POSIX character classes like
+C<[:alpha:]>, and character class escapes like C<\p{Zs}>.
 
 =head2 as_XML
 
@@ -4466,4 +4482,3 @@ will be useful, but without any warranty; without even the implied
 warranty of merchantability or fitness for a particular purpose.
 
 =cut
-

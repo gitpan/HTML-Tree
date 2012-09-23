@@ -5,7 +5,7 @@ use strict;
 
 #Test that we can build and compare trees
 
-use Test::More tests => 42;
+use Test::More tests => 46;
 
 use HTML::Element;
 
@@ -17,7 +17,7 @@ FIRST_BLOCK: {
             'stuff',
             [ 'p', 'um, p < 4!', { 'class' => 'par123' } ],
             [ 'div', { foo => 'bar' }, ' 1  2  3 ' ],        # at 0.1.2
-            [ 'div', { fu  => 'baa' }, " 1 &nbsp; 2 \xA0 3 " ],    # RT #26436 test
+            [ 'div', { fu  => 'baa' }, " 1 and 2 \xA0 3 " ], # RT #26436 test
             ['hr'],
         ]
     ];
@@ -70,11 +70,13 @@ FIRST_BLOCK: {
     isa_ok( $div2, 'HTML::Element' );
 
     ### test for RT #26436 user controlled white space
-    is( $div2->as_text(), " 1 &nbsp; 2 \xA0 3 ", "Dump element in text format" );
+    is( $div2->as_text(), " 1 and 2 \xA0 3 ", "Dump element in text format" );
     is( $div2->as_trimmed_text(),
-        "1 &nbsp; 2 \xA0 3", "Dump element in trimmed text format" );
-    is( $div2->as_trimmed_text( extra_chars => '&nbsp;\xA0' ),
-        "1 2 3", "Dump element in trimmed text format" );
+        "1 and 2 \xA0 3", "Dump element in trimmed text format" );
+    is( $div2->as_trimmed_text( extra_chars => 'a-z\xA0' ),
+        "1 2 3", "Dump element in trimmed text format without nbsp or letters");
+    is( $div2->as_trimmed_text( extra_chars => '[:alpha:]' ),
+        "1 2 \xA0 3", "Dump element in trimmed text format without letters");
 
     my $t2 = HTML::Element->new_from_lol($lol);
     isa_ok( $t2, 'HTML::Element' );
@@ -140,3 +142,11 @@ NORMALIZED: {
     ok( not grep( 'bar', $t1->all_external_attr() ) );
     $t1->delete;
 }    # TEST2
+
+EXTRA_CHARS_IS_FALSE: {
+    my $h = HTML::Element->new_from_lol([p => '1  2 0  4']);
+    is( $h->as_text, '1  2 0  4', "Dump p in text format" );
+    is( $h->as_trimmed_text, '1 2 0 4', "Dump p in trimmed format" );
+    is( $h->as_trimmed_text(extra_chars => '0'), '1 2 4',
+        "Dump p in trimmed format without 0" );
+}

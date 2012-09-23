@@ -1,5 +1,19 @@
 Changelog for HTML-Tree
 
+5.03     2012-09-22
+   Release by Christopher J. Madsen
+
+    [THINGS THAT MAY BREAK YOUR CODE OR TESTS]
+    * as_HTML no longer indents <textarea> (Tomohiro Hosaka) (RT #70385)
+
+    [FIXES]
+    * as_trimmed_text did not accept '0' for extra_chars
+
+    [DOCUMENTATION]
+    * Explain that as_text never adds whitespace (RT #66498)
+    * Explain what extra_chars can contain for as_trimmed_text.
+
+
 5.02     2012-06-27
    Release by Christopher J. Madsen
 
@@ -124,6 +138,7 @@ Changelog for HTML-Tree
       tests expecting &#00; style encoding.
     * Attribute names are now validated in as_XML and invalid names will
       cause an error.
+    * HTML-Tree now requires at least Perl 5.8.0
 
     [FIXES]
     * Optionally empty tags with content now have close tag. (RT #49932 #41806)

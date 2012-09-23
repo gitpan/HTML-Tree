@@ -1,4 +1,4 @@
-HTML-Tree version 5.02, released 2012-06-27
+HTML-Tree version 5.03, released 2012-09-22
 
 
 This distribution contains a suite of modules for representing,
@@ -55,7 +55,7 @@ DEPENDENCIES
 
   Package         Minimum Version
   --------------- ---------------
-  perl             5.008
+  perl             5.8.0
   Carp             
   Exporter         
   HTML::Entities   
