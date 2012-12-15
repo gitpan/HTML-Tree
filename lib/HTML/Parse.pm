@@ -8,21 +8,17 @@ use 5.008;
 use warnings;
 use strict;
 
-our $VERSION = '5.03'; # VERSION from OurPkgVersion
-
-use vars qw(@ISA @EXPORT
-    $IMPLICIT_TAGS $IGNORE_UNKNOWN $IGNORE_TEXT $WARN
-);
+our $VERSION = '5.900'; # TRIAL VERSION from OurPkgVersion
 
 require Exporter;
-@ISA    = qw(Exporter);
-@EXPORT = qw(parse_html parse_htmlfile);
+our @ISA    = qw(Exporter);
+our @EXPORT = qw(parse_html parse_htmlfile);
 
 # Backwards compatability
-$IMPLICIT_TAGS  = 1;
-$IGNORE_UNKNOWN = 1;
-$IGNORE_TEXT    = 0;
-$WARN           = 0;
+our $IMPLICIT_TAGS  = 1;
+our $IGNORE_UNKNOWN = 1;
+our $IGNORE_TEXT    = 0;
+our $WARN           = 0;
 
 require HTML::TreeBuilder;
 
@@ -63,8 +59,9 @@ HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
 
 =head1 VERSION
 
-This document describes version 5.03 of
-HTML::Parse, released September 22, 2012
+B<This is a development release for testing purposes only.>
+This document describes version 5.900 of
+HTML::Parse, released December 15, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS

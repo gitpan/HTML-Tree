@@ -7,7 +7,7 @@ package HTML::Tree;
 use warnings;
 use strict;
 
-our $VERSION = '5.03'; # VERSION from OurPkgVersion
+our $VERSION = '5.900'; # TRIAL VERSION from OurPkgVersion
 
 use HTML::TreeBuilder ();
 
@@ -30,10 +30,22 @@ sub new_from_content {
     goto &HTML::TreeBuilder::new_from_content;
 }
 
+sub new_from_string {
+    shift;
+    unshift @_, 'HTML::TreeBuilder';
+    goto &HTML::TreeBuilder::new_from_string;
+}
+
 sub new_from_url {
     shift;
     unshift @_, 'HTML::TreeBuilder';
     goto &HTML::TreeBuilder::new_from_url;
+}
+
+sub new_from_http {
+    shift;
+    unshift @_, 'HTML::TreeBuilder';
+    goto &HTML::TreeBuilder::new_from_http;
 }
 
 1;
@@ -48,8 +60,9 @@ HTML::Tree - build and scan parse-trees of HTML
 
 =head1 VERSION
 
-This document describes version 5.03 of
-HTML::Tree, released September 22, 2012
+B<This is a development release for testing purposes only.>
+This document describes version 5.900 of
+HTML::Tree, released December 15, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
@@ -126,9 +139,17 @@ Redirects to L<HTML::TreeBuilder/new_from_file>.
 
 Redirects to L<HTML::TreeBuilder/new_from_content>.
 
+=head2 new_from_string
+
+Redirects to L<HTML::TreeBuilder/new_from_string>.
+
 =head2 new_from_url
 
 Redirects to L<HTML::TreeBuilder/new_from_url>.
+
+=head2 new_from_http
+
+Redirects to L<HTML::TreeBuilder/new_from_http>.
 
 =head1 SUPPORT
 

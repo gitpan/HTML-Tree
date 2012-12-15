@@ -5,7 +5,7 @@ use strict;
 
 use constant tests_per_object => 7;
 
-use Test::More tests => ( 5 + 10 * tests_per_object );
+use Test::More tests => ( 6 + 13 * tests_per_object );
 use Test::Fatal qw(exception);
 
 #initial tests + number of tests in test_new_obj() * number of times called
@@ -60,6 +60,11 @@ is( $HTMLPart1 . $HTMLPart2, $HTML, "split \$HTML correctly" );
 }
 
 {
+    my $string_obj = HTML::Tree->new_from_string($HTML);
+    test_new_obj( $string_obj, "new_from_string Scalar" );
+}
+
+{
     my $file_obj = HTML::Tree->new_from_file($TestInput);
     test_new_obj( $file_obj, "new_from_file Scalar" );
 }
@@ -78,8 +83,8 @@ is( $HTMLPart1 . $HTMLPart2, $HTML, "split \$HTML correctly" );
         require URI::file;
         require LWP::UserAgent;
         1;
-    } or skip("URI::file or LWP::UserAgent not installed",
-              2 + 2 * tests_per_object);
+    } or skip("both URI::file and LWP::UserAgent needed for these tests",
+              3 + 3 * tests_per_object);
 
     my $file_url = URI->new( "file:" . $TestInput );
 
@@ -91,6 +96,13 @@ is( $HTMLPart1 . $HTMLPart2, $HTML, "split \$HTML correctly" );
     {
         my $file_obj = HTML::Tree->new_from_url($file_url);
         test_new_obj( $file_obj, "new_from_url Object" );
+    }
+
+    {
+        my $resp = LWP::UserAgent->new->get($file_url);
+        isa_ok($resp, 'HTTP::Response');
+        my $tree = HTML::Tree->new_from_http( $resp );
+        test_new_obj( $tree, "new_from_http" );
     }
 
     like(
@@ -109,8 +121,13 @@ is( $HTMLPart1 . $HTMLPart2, $HTML, "split \$HTML correctly" );
 
 # Scalar REF Tests
 {
-    my $content_obj = HTML::Tree->new_from_content($HTML);
+    my $content_obj = HTML::Tree->new_from_content(\$HTML);
     test_new_obj( $content_obj, "new_from_content Scalar REF" );
+}
+
+{
+    my $string_obj = HTML::Tree->new_from_string(\$HTML);
+    test_new_obj( $string_obj, "new_from_string Scalar REF" );
 }
 
 # None for new_from_file
@@ -118,7 +135,7 @@ is( $HTMLPart1 . $HTMLPart2, $HTML, "split \$HTML correctly" );
 
 {
     my $parse_content_obj = HTML::Tree->new;
-    $parse_content_obj->parse_content($HTML);
+    $parse_content_obj->parse_content(\$HTML);
     test_new_obj( $parse_content_obj, "new(); parse_content Scalar REF" );
 }
 

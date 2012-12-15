@@ -5,19 +5,23 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.03'; # VERSION from OurPkgVersion
+our $VERSION = '5.900'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
 use HTML::Tagset   ();
 use integer;    # vroom vroom!
 
+# This controls the character encoding for I/O.
+# HTML::TreeBuilder uses it for parse_file.
+# A value of undef means to auto-detect encoding.
+# The empty string means to use :raw mode (the old default).
+our $default_encoding;
+
 # This controls encoding entities on output.
 # When set entities won't be re-encoded.
 # Defaulting off because parser defaults to unencoding entities
 our $encoded_content = 0;
-
-use vars qw($html_uc $Debug $ID_COUNTER $VERSION %list_type_to_sub);
 
 # Set up support for weak references, if possible:
 my $using_weaken;
@@ -61,6 +65,7 @@ sub import {
 } # end import
 
 
+our $Debug;
 $Debug = 0 unless defined $Debug;
 
 #=head1 SUBROUTINES
@@ -68,7 +73,7 @@ $Debug = 0 unless defined $Debug;
 
 sub Version {
     Carp::carp("Deprecated subroutine HTML::Element::Version called");
-    $VERSION;
+    our $VERSION;
 }
 
 my $nillio = [];
@@ -109,7 +114,7 @@ sub OK ()           {$OK}
 sub PRUNE_UP ()     {$PRUNE_UP}
 ## use critic
 
-$html_uc = 0;
+our $html_uc = 0;
 
 # set to 1 if you want tag and attribute names from starttag and endtag
 #  to be uc'd
@@ -161,15 +166,16 @@ sub new {
     Carp::croak("No tagname") unless defined $tag and length $tag;
     Carp::croak "\"$tag\" isn't a good tag name!"
         if $tag =~ m/[<>\/\x00-\x20]/;    # minimal sanity, certainly!
-    my $self = bless { _tag => scalar( $class->_fold_case($tag) ) }, $class;
+    my $self = bless { _tag => ($tag = $class->_fold_case($tag) ) }, $class;
+    if ( $tag eq 'html' ) {
+        $self->{'_encoding'} = $default_encoding;
+        $self->{'_pos'} = undef;
+    }
     my ( $attr, $val );
     while ( ( $attr, $val ) = splice( @_, 0, 2 ) ) {
 ## RT #42209 why does this default to the attribute name and not remain unset or the empty string?
         $val = $attr unless defined $val;
         $self->{ $class->_fold_case($attr) } = $val;
-    }
-    if ( $tag eq 'html' ) {
-        $self->{'_pos'} = undef;
     }
     _weaken($self->{'_parent'}) if $self->{'_parent'};
     return $self;
@@ -219,6 +225,12 @@ sub parent {
 }
 
 
+sub child_nodes
+{
+    grep { ref $_ } @{ shift->{'_content'} or return(wantarray ? () : 0) };
+} # end child_nodes
+
+
 sub content_list {
     return wantarray
         ? @{ shift->{'_content'} || return () }
@@ -239,6 +251,11 @@ sub content_array_ref {
 
 sub content_refs_list {
     return \( @{ shift->{'_content'} || return () } );
+}
+
+
+sub encoding {
+    return shift->attr( '_encoding', @_ );
 }
 
 
@@ -310,6 +327,7 @@ sub id {
 
 
 sub _gensym {
+    our $ID_COUNTER;
     unless ( defined $ID_COUNTER ) {
 
         # start it out...
@@ -887,6 +905,44 @@ sub dump {
 }
 
 
+sub openw
+{
+    my $self     = shift;
+    my $filename = shift;
+    my $encoding = (@_ ? shift : $self->encoding);
+
+    Carp::croak("No encoding specified") unless defined $encoding;
+
+    open(my $filehandle, '>:raw', $filename)
+      or Carp::croak("Unable to open $filename for writing: $!");
+
+    return $self->encode_fh($filehandle, $encoding);
+} # end openw
+
+
+sub encode_fh
+{
+    my $self       = shift;
+    my $filehandle = shift;
+    my $encoding   = (@_ ? shift : $self->encoding);
+
+    Carp::croak("No encoding specified") unless defined $encoding;
+
+    my $bom = ($encoding =~ s/:BOM\z//);
+
+    $encoding = (length($encoding) ? ":encoding($encoding)" : ':raw');
+
+    binmode($filehandle, $encoding)
+      or Carp::croak("Unable to set $encoding on filehandle: $!");
+
+    print $filehandle "\x{FeFF}"
+        or Carp::croak("Error printing BOM to filehandle: $!")
+            if $bom;
+
+    return $filehandle;
+} # end encode_fh
+
+
 sub as_HTML {
     my ( $self, $entities, $indent, $omissible_map ) = @_;
 
@@ -1443,8 +1499,6 @@ sub endtag_XML {
 # of them, actually: one for content-listrefs, one for indexes of
 # current position in each of those).
 
-my $NIL = [];
-
 sub traverse {
     my ( $start, $callback, $ignore_text ) = @_;
 
@@ -1604,7 +1658,7 @@ sub traverse {
 
              # push a dummy empty content list just to trigger a post callback
                         unshift @I, -1;
-                        unshift @C, $NIL;
+                        unshift @C, $nillio;
                     }
                     next;
                 }
@@ -1649,7 +1703,7 @@ sub traverse {
             )
         {
             unshift @I, -1;
-            unshift @C, $content_r || $NIL;
+            unshift @C, $content_r || $nillio;
 
             #print $this->{'_tag'}, " ($this) adds content_r ", $C[0], "\n";
         }
@@ -2617,7 +2671,7 @@ sub deobjectify_text {
 
 sub _int2int { $_[0] }    # dummy
 
-%list_type_to_sub = (
+our %list_type_to_sub = (
     'I' => \&_int2ROMAN,
     'i' => \&_int2roman,
     'A' => \&_int2LATIN,
@@ -2798,9 +2852,18 @@ HTML::Element - Class for objects that represent HTML elements
 
 =head1 VERSION
 
-This document describes version 5.03 of
-HTML::Element, released September 22, 2012
+B<This is a development release for testing purposes only.>
+This document describes version 5.900 of
+HTML::Element, released December 15, 2012
 as part of L<HTML-Tree|HTML::Tree>.
+
+Methods introduced in version 4.0 or later are marked with the version
+that introduced them like this: C<(v4.0)>.
+
+B<WARNING:> Methods marked C<(v6.00)> are not yet stable.  The API for
+handling encoding might change.  if you have comments or suggestions
+on the new API, please write to the LWP mailing list at
+S<C<< <libwww AT perl DOT org> >>>.
 
 =head1 SYNOPSIS
 
@@ -2915,14 +2978,31 @@ not an aspect of any particular object, but is emergent from the
 relatedness attributes (_parent and _content) of these element-objects
 and from how you use them to get from element to element.
 
+=head2 Traversing a tree
+
 While you could access the content of a tree by writing code that says
 "access the 'src' attribute of the root's I<first> child's I<seventh>
 child's I<third> child", you're more likely to have to scan the contents
 of a tree, looking for whatever nodes, or kinds of nodes, you want to
 do something with.  The most straightforward way to look over a tree
-is to "traverse" it; an HTML::Element method (C<< $h->traverse >>) is
-provided for this purpose; and several other HTML::Element methods are
-based on it.
+is to "traverse" it.  The simplest way to do that is with a recursive
+function:
+
+    sub process_tree {
+      my ($elt) = @_;
+      # Pre-order code using $elt goes here
+      process_tree($_) for $elt->child_nodes; # requires v6.00
+      # Post-order code using $elt goes here
+    } # end process_tree
+
+The L</child_nodes> method was introduced in HTML-Tree 6.00.  For
+compatibility with earlier versions, you can use
+
+    for my $e ($elt->content_list) { process_tree($e) if ref $e }
+
+instead.  HTML::Element also provides a L</traverse> method that
+handles the recursion for you, but at the expense of code that's less
+clear, and its use is now discouraged.
 
 (For everything you ever wanted to know about trees, and then some,
 see Niklaus Wirth's I<Algorithms + Data Structures = Programs> or
@@ -3100,6 +3180,20 @@ Methods", below.
 Note that C<< not($h->parent) >> is a simple test for whether C<$h> is the
 root of its subtree.
 
+=head2 child_nodes
+
+  @child_objects = $h->child_nodes();
+  $num_child_objects = $h->child_nodes();
+
+C<(v6.00)>
+This is just like C<content_list>, except that it returns only
+objects, not text segments.  (If you've called C<objectify_text>, the
+C<~text> nodes I<are> included.)
+
+It is exactly equivalent to
+S<C<< grep { ref $_ } $h->content_list >>>,
+including returning the object count in scalar context.
+
 =head2 content_list
 
   @content = $h->content_list();
@@ -3179,6 +3273,30 @@ You I<could> currently achieve the same affect with:
 ...except that using the return value of C<< $h->content >> or
 C<< $h->content_array_ref >> to do that is deprecated, and just might stop
 working in the future.
+
+=head2 encoding
+
+  $encoding = $h->encoding();
+  $h->encoding($new_encoding);
+
+C<(v6.00)>
+Returns (optionally sets) the "_encoding" attribute.  This attribute
+is normally found only on the root C<< <html> >> node.  Its default
+value is taken from C<$HTML::Element::default_encoding>, which is
+C<undef> by default.
+
+The value is a string: the name of a Perl encoding understood by
+L<Encode>, with C<:BOM> appended if the file began with a Unicode
+Byte-Order-Mark (U+FEFF).  Common values are C<cp1252> (aka
+Windows-1252, Microsoft's extended version of ISO-8859-1, and the
+default encoding recommended by HTML5 for most locales),
+C<utf-8-strict>, and C<UTF-16LE:BOM>.
+
+There are two special values: the empty string indicates C<:raw> mode,
+and C<undef> indicates that the encoding should be auto-detected.
+
+You can use the L</openw> or L</encode_fh> methods to open an output
+file with the same encoding.
 
 =head2 implicit
 
@@ -3540,6 +3658,49 @@ Prints the element and all its children to STDOUT (or to a specified
 filehandle), in a format useful
 only for debugging.  The structure of the document is shown by
 indentation (no end tags).
+
+=head2 openw
+
+  $filehandle = $h->openw($filename);
+  $filehandle = HTML::Element->openw($filename, $encoding);
+
+C<(v6.00)>
+Opens C<$filename> for writing, calls L</encode_fh> on the resulting
+C<$filehandle>, and returns the C<$filehandle>.  If C<$encoding> is
+omitted, it defaults to C<< $h->encoding >>.  May be called as a class
+method if you supply C<$encoding> as a parameter.
+
+The C<$filehandle> will not have the C<:crlf> layer applied, even on
+platforms where it normally is on by default.  If you want C<:crlf>,
+apply it after calling C<openw> (with S<C<binmode $filehandle, ':crlf'>>).
+
+Throws an exception if the file cannot be opened for any reason,
+or if C<$encoding> is C<undef>.
+
+=head2 encode_fh
+
+  $h->encode_fh($filehandle);
+  HTML::Element->encode_fh($filehandle, $encoding);
+
+C<(v6.00)>
+Applies C<$encoding> to C<$filehandle> and returns C<$filehandle>.  If
+C<$encoding> is omitted, it defaults to C<< $h->encoding >>.  May be
+called as a class method if you supply C<$encoding> as a parameter.
+
+C<$filehandle> should probably have been opened in C<:raw> mode.
+Applying a UTF-16 encoding on top of the C<:crlf> layer will produce
+invalid output.  On Windows, C<:crlf> is applied by default unless you
+specify C<:raw>.  If you want C<:crlf>, you should apply it after
+calling C<encode_fh>.
+
+C<$encoding> may be any valid value for the L<_encoding|/encoding> attribute,
+except C<undef>.
+
+If C<$encoding> ends with C<:BOM>, then C<\x{FEFF}> is printed to
+C<$filehandle> after the encoding is set.
+
+Throws an exception if the encoding cannot be applied for any reason,
+or if C<$encoding> is C<undef>.
 
 =head2 as_HTML
 
@@ -4330,7 +4491,7 @@ the tree in memory was properly constructed); and it I<should> be
 impossible for you to produce an insane tree just thru reasonable
 use of normal documented structure-modifying methods.  But if you're
 constructing your own trees, and your program is going into infinite
-loops as during calls to traverse() or any of the secondary
+loops as during calls to C<traverse()> or any of the secondary
 structural methods, as part of debugging, consider calling
 C<has_insane_linkage> on the tree.
 
@@ -4338,6 +4499,7 @@ C<has_insane_linkage> on the tree.
 
   $classname = $h->element_class();
 
+C<(v4.0)>
 This method returns the class which will be used for new elements.  It
 defaults to HTML::Element, but can be overridden by subclassing or esoteric
 means best left to those will will read the source and then not complain when
@@ -4385,7 +4547,7 @@ See L</"Weak References">.
 
 * There's almost nothing to stop you from making a "tree" with
 cyclicities (loops) in it, which could, for example, make the
-traverse method go into an infinite loop.  So don't make
+C<traverse> method go into an infinite loop.  So don't make
 cyclicities!  (If all you're doing is parsing HTML files,
 and looking at the resulting trees, this will never be a problem
 for you.)

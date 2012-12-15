@@ -19,6 +19,7 @@ lib/HTML/Tree/Scanning.pod
 lib/HTML/TreeBuilder.pm
 t/00-all_prereqs.t
 t/00system.t
+t/Util.pm
 t/assubs.t
 t/attributes.t
 t/body.t
@@ -27,6 +28,7 @@ t/children.t
 t/clonei.t
 t/construct_tree.t
 t/doctype.t
+t/encoding.t
 t/escape.t
 t/leaktest.t
 t/oldparse.html
@@ -35,7 +37,10 @@ t/parents.t
 t/parse.t
 t/parsefile.t
 t/refloop.t
+t/sample.html
 t/sample.txt
+t/sample.xhtml
+t/self-closed.t
 t/split.t
 t/subclass.t
 t/tag-rendering.t

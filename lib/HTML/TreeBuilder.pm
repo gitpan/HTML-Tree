@@ -2,12 +2,14 @@ package HTML::TreeBuilder;
 
 # ABSTRACT: Parser that builds a HTML syntax tree
 
+use 5.008;
 use warnings;
 use strict;
 use integer;    # vroom vroom!
 use Carp ();
+use Scalar::Util qw(openhandle);
 
-our $VERSION = '5.03'; # VERSION from OurPkgVersion
+our $VERSION = '5.900'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -85,12 +87,13 @@ our @ISA = qw(HTML::Element HTML::Parser);
 
 sub new_from_file {    # or from a FH
     my $class = shift;
-    Carp::croak("new_from_file takes only one argument")
-        unless @_ == 1;
+    Carp::croak("new_from_file takes an odd number of arguments")
+        unless @_ % 2;
     Carp::croak("new_from_file is a class method only")
         if ref $class;
-    my $new = $class->new();
-    defined $new->parse_file( $_[0] )
+    my $file = shift;
+    my $new = $class->new(@_);
+    defined $new->parse_file( $file )
         or Carp::croak("unable to parse file: $!");
     return $new;
 }
@@ -113,15 +116,26 @@ sub new_from_content {    # from any number of scalars
     return $new;
 }
 
+sub new_from_string {    # from a single scalar (plus options)
+    my $class = shift;
+    Carp::croak("new_from_string takes an odd number of arguments")
+        unless @_ % 2;
+    Carp::croak("new_from_string is a class method only")
+        if ref $class;
+    my $string = shift;
+    my $new = $class->new(@_);
+    $new->parse_content($string);
+    return $new;
+}
+
 sub new_from_url {                     # should accept anything that LWP does.
     undef our $lwp_response;
     my $class = shift;
-    Carp::croak("new_from_url takes only one argument")
-        unless @_ == 1;
+    Carp::croak("new_from_url takes an odd number of arguments")
+        unless @_ % 2;
     Carp::croak("new_from_url is a class method only")
         if ref $class;
     my $url = shift;
-    my $new = $class->new();
 
     require LWP::UserAgent;
     # RECOMMEND PREREQ: LWP::UserAgent 5.815
@@ -133,9 +147,49 @@ sub new_from_url {                     # should accept anything that LWP does.
     Carp::croak("$url returned " . $lwp_response->content_type . " not HTML")
           unless $lwp_response->content_is_html;
 
-    $new->parse( $lwp_response->decoded_content );
-    $new->eof;
+    my $new = $class->new_from_http($lwp_response, @_);
+
     undef $lwp_response;        # Processed successfully
+    return $new;
+}
+
+sub new_from_http { # from a HTTP::Message (or subclass)
+    my $class = shift;
+    Carp::croak("new_from_http takes an odd number of arguments")
+        unless @_ % 2;
+    Carp::croak("new_from_http is a class method only")
+        if ref $class;
+    my $message = shift;
+    my $new = $class->new(@_);
+
+    my $cref;
+
+    my %opt = @_;
+    if (defined $opt{encoding}) {
+        # User-specified charset:
+        my $charset = ($opt{encoding} || 'none');
+        $charset =~ s/:BOM\z//;
+        $cref = $message->decoded_content(ref => 1, charset => $charset);
+    } else {
+        # Auto-detect charset:
+        my $charset = $message->content_charset || 'cp1252';
+        $cref = $message->decoded_content(ref => 1, charset => $charset);
+        if ($charset eq 'none') {
+            $charset = '';
+        } else {
+            require Encode;
+            if (my $encoding = Encode::find_encoding($charset)) {
+                $charset = $encoding->name; # canonical name
+                $charset .= ':BOM' if $$cref =~ /^\x{FeFF}/;
+            } else {
+                undef $charset; # Encode doesn't recognize it
+            }
+        }
+        $new->{_encoding} = $charset;
+    } # end else auto-detect charset
+
+    $new->parse( $$cref );
+    $new->eof;
     return $new;
 }
 
@@ -154,6 +208,41 @@ sub parse_content {    # from any number of scalars
     }
     $tree->eof();
     return $retval;
+}
+
+#---------------------------------------------------------------------
+sub parse_file {
+    my ($self, $file) = @_;
+
+    Carp::croak("parse_file requires file argument") unless defined $file;
+
+    my $fh = openhandle($file);
+    unless (defined $fh) {
+        my $encoding = $self->{_encoding};
+
+        if (not defined $encoding) {
+            require IO::HTML;
+
+            {   local $@;
+                eval {
+                    ($fh, $encoding, my $bom) =
+                        IO::HTML::file_and_encoding($file);
+                    $encoding .= ':BOM' if $bom;
+                };
+            } # end local $@
+            $self->{_encoding} = $encoding;
+        } # end if auto encoding
+        else {
+            $encoding =~ s/:BOM$//;
+            open($fh, (length($encoding) ? "<:encoding($encoding):crlf"
+                                         : "<:raw"),             $file)
+                or undef $fh;
+        }
+
+        return undef unless defined $fh;
+    } # end unless filehandle was passed in
+
+    $self->SUPER::parse_file($fh);
 }
 
 #---------------------------------------------------------------------------
@@ -196,24 +285,31 @@ sub new {                               # constructor!
     $self->{'_ignore_text'}         = 0;
     $self->{'_warn'}                = 0;
     $self->{'_no_space_compacting'} = 0;
+    $self->{'_self_closed_tags'}    = 0;
     $self->{'_store_comments'}      = 0;
     $self->{'_store_declarations'}  = 1;
     $self->{'_store_pis'}           = 0;
     $self->{'_p_strict'}            = 0;
-    $self->{'_no_expand_entities'}  = 0;
-
-    # Parse attributes passed in as arguments
-    if (@_) {
-        my %attr = @_;
-        for ( keys %attr ) {
-            $self->{"_$_"} = $attr{$_};
-        }
-    }
-
-    $HTML::Element::encoded_content = $self->{'_no_expand_entities'};
+    $HTML::Element::encoded_content = $self->{'_no_expand_entities'}  = 0;
 
     # rebless to our class
     bless $self, $class;
+
+    # Parse attributes passed in as arguments
+    if (@_) {
+        Carp::croak("new must be passed key => value pairs") if @_ % 2;
+
+        my %attr = @_;
+        my $allowed = $self->_is_attr;
+
+        while (my ($attr, $value) = each %attr ) {
+            if ($allowed->{$attr}) {
+                $self->$attr($value);
+            } else {
+                Carp::carp("Ignoring unknown attribute $attr");
+            }
+        } # end while each $attr
+    } # end if attributes passed to new
 
     $self->{'_element_count'} = 1;
 
@@ -237,22 +333,51 @@ sub _elem                       # universal accessor...
     return $old;
 }
 
-# accessors....
-sub implicit_tags       { shift->_elem( '_implicit_tags',       @_ ); }
-sub implicit_body_p_tag { shift->_elem( '_implicit_body_p_tag', @_ ); }
-sub p_strict            { shift->_elem( '_p_strict',            @_ ); }
-sub no_space_compacting { shift->_elem( '_no_space_compacting', @_ ); }
-sub ignore_unknown      { shift->_elem( '_ignore_unknown',      @_ ); }
-sub ignore_text         { shift->_elem( '_ignore_text',         @_ ); }
-sub ignore_ignorable_whitespace { shift->_elem( '_tighten',            @_ ); }
-sub store_comments              { shift->_elem( '_store_comments',     @_ ); }
-sub store_declarations          { shift->_elem( '_store_declarations', @_ ); }
-sub store_pis                   { shift->_elem( '_store_pis',          @_ ); }
-sub warn                        { shift->_elem( '_warn',               @_ ); }
+BEGIN {
+    my @attributes = qw(
+         implicit_tags
+         implicit_body_p_tag
+         p_strict
+         no_space_compacting
+         ignore_unknown
+         ignore_text
+         self_closed_tags
+         store_comments
+         store_declarations
+         store_pis
+         warn
+    );
+
+    # Create accessor methods:
+    my $code = join('', map { "sub $_ { shift->_elem( '_$_', \@_ ); }\n" }
+                            @attributes);
+    my $err;
+    {
+        local $@;
+        $err = $@ || "UNKNOWN ERROR" unless eval "$code 1"; ## no critic
+    }
+    die "$code$err" if $err;
+
+    # Record names of class attributes:
+    my %is_attr = map { $_ => 1 } (@attributes, qw(
+      encoding
+      ignore_ignorable_whitespace
+      no_expand_entities
+    ));
+
+    sub _is_attr { return \%is_attr }
+}
+
+# Custom accessors:
+sub ignore_ignorable_whitespace {
+    shift->_elem( '_tighten', @_ ); # internal name is different
+}
 
 sub no_expand_entities {
-    shift->_elem( '_no_expand_entities', @_ );
-    $HTML::Element::encoded_content = @_;
+    my $self = shift;
+    my $return = $self->_elem( '_no_expand_entities', @_ );
+    $HTML::Element::encoded_content = $self->{_no_expand_entities};
+    $return;
 }
 
 #==========================================================================
@@ -277,6 +402,10 @@ sub warning {
 
         # Accept a signal from HTML::Parser for start-tags.
         my ( $self, $tag, $attr ) = @_;
+
+        my $self_closed = ($self->{'_self_closed_tags'} and
+                           $_[4] =~ m!/[\n\r\f\t ]*>\z!);
+        delete $attr->{'/'} if $self_closed;
 
         # Parser passes more, actually:
         #   $self->start($tag, $attr, $attrseq, $origtext)
@@ -871,7 +1000,10 @@ sub warning {
             }
         }
 
-        $self->insert_element($e) unless $already_inserted;
+        unless ($already_inserted) {
+            if ($self_closed) { $self->pos->push_content($e) }
+            else              { $self->insert_element($e)    }
+        }
 
         if (DEBUG) {
             if ( $self->{'_pos'} ) {
@@ -1615,6 +1747,7 @@ sub elementify {
                 and $_ ne '_implicit'
                 and $_ ne '_pos'
                 and $_ ne '_element_class'
+                and $_ ne '_encoding'
             } keys %$self
         };
     bless $self, $to_class;    # Returns the same object we were fed
@@ -1682,9 +1815,18 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 
 =head1 VERSION
 
-This document describes version 5.03 of
-HTML::TreeBuilder, released September 22, 2012
+B<This is a development release for testing purposes only.>
+This document describes version 5.900 of
+HTML::TreeBuilder, released December 15, 2012
 as part of L<HTML-Tree|HTML::Tree>.
+
+Methods & attributes introduced in version 4.0 or later are marked
+with the version that introduced them like this: C<(v4.0)>.
+
+B<WARNING:> Methods marked C<(v6.00)> are not yet stable.  The API for
+handling encoding might change.  if you have comments or suggestions
+on the new API, please write to the LWP mailing list at
+S<C<< <libwww AT perl DOT org> >>>.
 
 =head1 SYNOPSIS
 
@@ -1837,6 +1979,15 @@ content-models on all elements, then I suggest that what you want is
 content-model checking as a stage after TreeBuilder has finished
 parsing.
 
+=head2 self_closed_tags
+
+C<(v6.00)>
+If set to true, TreeBuilder will support XML-style self-closed tags
+(e.g.  C<< <a id="b1"/> >>.  This means that your elements will not
+have C</> attributes, and TreeBuilder will not put subsequent elements
+inside the self-closed one.  But this I<does not> turn TreeBuilder
+into a true XML parser, and it is off by default.
+
 =head2 store_comments
 
 This determines whether TreeBuilder will normally store comments found
@@ -1880,13 +2031,13 @@ interest.
 =head2 new_from_file
 
   $root = HTML::TreeBuilder->new_from_file($filename_or_filehandle);
+  $root = HTML::TreeBuilder->new_from_file($file, attr => $value, ...);
 
 This "shortcut" constructor merely combines constructing a new object
-(with the L</new> method, below), and calling C<< $new->parse_file(...) >> on
-it.  Returns the new object.  Note that this provides no way of
-setting any parse options like C<store_comments> (for that, call C<new>, and
-then set options, before calling C<parse_file>).  See the notes (below)
-on parameters to L</parse_file>.
+(with the L</new> method, below), and calling C<< $root->parse_file($file) >> on
+it.  Returns the new object.  You can set any parse options like
+C<store_comments> by passing key-value pairs after the file argument.
+See the notes (below) on parameters to L</parse_file>.
 
 If HTML::TreeBuilder is unable to read the file, then C<new_from_file>
 dies.  The error can also be found in C<$!>.  (This behavior is new in
@@ -1897,23 +2048,35 @@ HTML-Tree 5. Previous versions returned a tree with only implicit elements.)
   $root = HTML::TreeBuilder->new_from_content(...);
 
 This "shortcut" constructor merely combines constructing a new object
-(with the L</new> method, below), and calling C<< for(...){$new->parse($_)} >>
-and C<< $new->eof >> on it.  Returns the new object.  Note that this provides
+(with the L</new> method, below), and calling C<< for(...){$root->parse($_)} >>
+and C<< $root->eof >> on it.  Returns the new object.  Note that this provides
 no way of setting any parse options like C<store_comments> (for that,
-call C<new>, and then set options, before calling C<parse>).  Example
-usages: C<< HTML::TreeBuilder->new_from_content(@lines) >>, or
-C<< HTML::TreeBuilder->new_from_content($content) >>.
+use the C<new_from_string> constructor instead).
+
+=head2 new_from_string
+
+  $root = HTML::TreeBuilder->new_from_string($string);
+  $root = HTML::TreeBuilder->new_from_string($string, attr => $value, ...);
+
+C<(v6.00)>
+This "shortcut" constructor merely combines constructing a new object
+(with the L</new> method, below), and calling
+C<< $root->parse_content($string) >> on it.  Despite the name,
+C<$string> can be any value accepted by L</parse_content>.  Returns
+the new object.  You can set any parse options like C<store_comments>
+by passing key-value pairs after the C<$string> argument.
 
 =head2 new_from_url
 
-  $root = HTML::TreeBuilder->new_from_url($url)
+  $root = HTML::TreeBuilder->new_from_url($url, attr => $value, ...);
 
+C<(v5.00)>
 This "shortcut" constructor combines constructing a new object (with
 the L</new> method, below), loading L<LWP::UserAgent>, fetching the
-specified URL, and calling C<< $new->parse( $response->decoded_content) >>
-and C<< $new->eof >> on it.
-Returns the new object.  Note that this provides no way of setting any
-parse options like C<store_comments>.
+specified URL, validating the response, and passing it to the
+C<new_from_http> constructor.  Returns the new
+object.  You can set any parse options like C<store_comments> by
+passing key-value pairs after the C<$url> argument.
 
 If LWP is unable to fetch the URL, or the response is not HTML (as
 determined by L<HTTP::Headers/content_is_html>), then C<new_from_url>
@@ -1924,12 +2087,32 @@ You must have installed LWP::UserAgent for this method to work.  LWP
 is not installed automatically, because it's a large set of modules
 and you might not need it.
 
+=head2 new_from_http
+
+  $root = HTML::TreeBuilder->new_from_http($msg, attr => $value, ...);
+
+C<(v6.00)>
+This "shortcut" constructor combines constructing a new object (with
+the L</new> method, below), decoding the content from a
+L<HTTP::Message> object (or a subclass like L<HTTP::Response>), and
+parsing the response content.  Returns the new object.  You can set
+any parse options like C<store_comments> by passing key-value pairs
+after the C<$msg> argument.
+
+It gets the charset from the HTTP::Message object and sets the
+C<encoding> attribute accordingly.  If you specify an encoding in the
+parameter list, that encoding overrides the one indicated by the
+HTTP::Message.
+
+Unlike C<new_from_url>, this does not check the status code or content
+type of the message before attempting to parse it.
+
 =head2 new
 
-  $root = HTML::TreeBuilder->new();
+  $root = HTML::TreeBuilder->new(attribute => $value, ...);
 
-This creates a new HTML::TreeBuilder object.  This method takes no
-attributes.
+This creates a new HTML::TreeBuilder object.  You can pass optional
+key-value pairs to set any of the L<attributes|/ATTRIBUTES>.
 
 =head2 parse_file
 
@@ -1942,20 +2125,21 @@ IO::File, IO::Socket) or the like.
 I think you should check that a given file exists I<before> calling
 C<< $root->parse_file($filespec) >>.]
 
-When you pass a filename to C<parse_file>, HTML::Parser opens it in
-binary mode, which means it's interpreted as Latin-1 (ISO-8859-1).  If
-the file is in another encoding, like UTF-8 or UTF-16, this will not
-do the right thing.
+HTML-Tree 6 changes what happens when you pass a filename to
+C<parse_file>.  In previous versions, the file was opened in binary
+mode, which means it's interpreted as Latin-1 (ISO-8859-1).  If the
+file is in another encoding, like UTF-8 or UTF-16, this did not do
+the right thing.
 
-One solution is to open the file yourself using the proper
-C<:encoding> layer, and pass the filehandle to C<parse_file>.  You can
-automate this process by using L<IO::HTML/html_file>, which will use
-the HTML5 encoding sniffing algorithm to automatically determine the
-proper C<:encoding> layer and apply it.
+In TreeBuilder 6, the file is opened as defined by the TreeBuilder's
+C<encoding> attribute (L<HTML::Element/encoding>).  If not explicitly
+set, it is initialized from C<$HTML::Element::default_encoding> when
+the TreeBuilder is constructed (not when C<parse_file> is called).
 
-In the next major release of HTML-Tree, I plan to have it use IO::HTML
-automatically.  If you really want your file opened in binary mode,
-you should open it yourself and pass the filehandle to C<parse_file>.
+If C<encoding> is C<undef> (the default), TreeBuilder opens the file
+using L<IO::HTML> (which uses the HTML5 encoding sniffing algorithm to
+automatically detect the file's encoding) and sets the C<encoding>
+attribute to the encoding used.
 
 The return value is C<undef> if there's an error opening the file.  In
 that case, the error will be in C<$!>.
@@ -1983,8 +2167,9 @@ before you actually start doing anything else with the tree in C<$root>.
 
   $root->parse_content(...);
 
-Basically a handy alias for C<< $root->parse(...); $root->eof >>.
-Takes the exact same arguments as C<< $root->parse() >>.
+Basically a handy alias for S<C<< $root->parse($_) for (...); $root->eof >>>.
+Takes the exact same arguments as C<< $root->parse() >>, except that
+it also accepts string references (which are automatically dereferenced).
 
 =head2 delete
 
@@ -2012,7 +2197,7 @@ now an object just of class HTML::Element which has no C<parse_file>
 method.
 
 Note that C<elementify> currently deletes all the private attributes of
-C<$root> except for "_tag", "_parent", "_content", "_pos", and
+C<$root> except for "_tag", "_parent", "_content", "_encoding", "_pos", and
 "_implicit".  If anyone requests that I change this to leave in yet
 more private attributes, I might do so, in future versions.
 

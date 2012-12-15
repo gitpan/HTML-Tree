@@ -9,10 +9,9 @@ my $builder = inc::My_Build->new(
     dist_author        => 'Christopher J. Madsen <perl@cjmweb.net>',
     dist_version_from  => 'lib/HTML/Element.pm',
   'build_requires' => {
-    'Encode' => '0',
     'Module::Build' => '0.2808',
     'Test::Fatal' => '0',
-    'Test::More' => '0',
+    'Test::More' => '0.88',
     'base' => '0'
   },
   'configure_requires' => {
@@ -24,10 +23,12 @@ my $builder = inc::My_Build->new(
   },
   'requires' => {
     'Carp' => '0',
+    'Encode' => '0',
     'Exporter' => '0',
     'HTML::Entities' => '0',
     'HTML::Parser' => '3.46',
     'HTML::Tagset' => '3.02',
+    'IO::HTML' => '0',
     'Scalar::Util' => '0',
     'integer' => '0',
     'perl' => '5.008'
