@@ -9,7 +9,7 @@ use integer;    # vroom vroom!
 use Carp ();
 use Scalar::Util qw(openhandle);
 
-our $VERSION = '5.900'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.901'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1816,8 +1816,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.900 of
-HTML::TreeBuilder, released December 15, 2012
+This document describes version 5.901 of
+HTML::TreeBuilder, released December 22, 2012
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods & attributes introduced in version 4.0 or later are marked
@@ -1881,6 +1881,11 @@ FALSE value as argument.  E.g., C<< $root->implicit_tags >> returns
 the current setting for the C<implicit_tags> option,
 C<< $root->implicit_tags(1) >> turns that option on,
 and C<< $root->implicit_tags(0) >> turns it off.
+
+=head2 encoding
+
+Indicates the character set used by the HTML file.
+See L<HTML::Element/encoding>.
 
 =head2 implicit_tags
 

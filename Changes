@@ -1,5 +1,11 @@
 Changelog for HTML-Tree
 
+5.901    2012-12-22
+   Trial Release by Christopher J. Madsen
+
+    [TESTS]
+    * Fix encoding.t to work on Perl 5.8.9 and 5.10.0
+
 5.900    2012-12-15
    Trial Release by Christopher J. Madsen
 

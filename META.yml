@@ -37,7 +37,7 @@ requires:
   perl: 5.008
 resources:
   repository: git://github.com/madsen/HTML-Tree.git
-version: 5.900
+version: 5.901
 x_Dist_Zilla:
   perl:
     version: 5.014002
