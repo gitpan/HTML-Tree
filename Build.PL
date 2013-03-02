@@ -30,7 +30,6 @@ my $builder = inc::My_Build->new(
     'HTML::Tagset' => '3.02',
     'IO::HTML' => '0',
     'Scalar::Util' => '0',
-    'integer' => '0',
     'perl' => '5.008'
   },
     add_to_cleanup =>

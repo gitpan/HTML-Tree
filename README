@@ -1,4 +1,4 @@
-HTML-Tree version 5.901, released 2012-12-22
+HTML-Tree version 5.902, released 2013-03-01
 THIS IS A DEVELOPMENT RELEASE FOR TESTING PURPOSES ONLY.
 
 
@@ -64,8 +64,7 @@ DEPENDENCIES
   HTML::Parser     3.46
   HTML::Tagset     3.02
   IO::HTML         
-  Scalar::Util     
-  integer
+  Scalar::Util
 
 
 

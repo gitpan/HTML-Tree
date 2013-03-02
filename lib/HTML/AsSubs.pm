@@ -6,7 +6,7 @@ package HTML::AsSubs;
 use warnings;
 use strict;
 
-our $VERSION = '5.901'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.902'; # TRIAL VERSION from OurPkgVersion
 
 require HTML::Element;
 require Exporter;
@@ -73,8 +73,8 @@ HTML::AsSubs - functions that construct a HTML syntax tree
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.901 of
-HTML::AsSubs, released December 22, 2012
+This document describes version 5.902 of
+HTML::AsSubs, released March 1, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS

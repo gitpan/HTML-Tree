@@ -9,7 +9,7 @@ use integer;    # vroom vroom!
 use Carp ();
 use Scalar::Util qw(openhandle);
 
-our $VERSION = '5.901'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.902'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1816,8 +1816,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.901 of
-HTML::TreeBuilder, released December 22, 2012
+This document describes version 5.902 of
+HTML::TreeBuilder, released March 1, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods & attributes introduced in version 4.0 or later are marked
@@ -2153,8 +2153,8 @@ that case, the error will be in C<$!>.
 
   $root->parse(...)
 
-[A important method inherited from L<HTML::Parser|HTML::Parser>, which
-see.  See the note below for C<< $root->eof() >>.]
+[An important method inherited from L<HTML::Parser>, which
+see.  You must call C<< $root->eof() >> after calling this method.]
 
 =head2 eof
 

@@ -11,7 +11,7 @@ build_requires:
 configure_requires:
   Module::Build: 0.2808
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.300028, CPAN::Meta::Converter version 2.120921'
+generated_by: 'Dist::Zilla version 4.300029, CPAN::Meta::Converter version 2.120921'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -33,11 +33,10 @@ requires:
   HTML::Tagset: 3.02
   IO::HTML: 0
   Scalar::Util: 0
-  integer: 0
   perl: 5.008
 resources:
   repository: git://github.com/madsen/HTML-Tree.git
-version: 5.901
+version: 5.902
 x_Dist_Zilla:
   perl:
     version: 5.014002
@@ -45,27 +44,27 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::Git::GatherDir
       name: Git::GatherDir
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::ManifestSkip
       name: ManifestSkip
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::MetaJSON
       name: MetaJSON
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::MetaYAML
       name: MetaYAML
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::MetaConfig
       name: MetaConfig
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::License
       name: License
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::MatchManifest
       name: MatchManifest
@@ -81,11 +80,11 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::PodSyntaxTests
       name: PodSyntaxTests
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::PodCoverageTests
       name: PodCoverageTests
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::ModuleBuild::Custom
       name: ModuleBuild::Custom
@@ -105,7 +104,7 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::TemplateCJM
       name: TemplateCJM
-      version: 4.10
+      version: 4.12
     -
       class: Dist::Zilla::Plugin::PodWeaver
       name: PodWeaver
@@ -113,7 +112,7 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::FileFinder::Filter
       name: FilesToWeave
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::Repository
       name: Repository
@@ -121,27 +120,27 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::NextRelease
       name: NextRelease
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
       name: Git::NextVersion
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::Git::Check
       name: '@Git/Check'
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::Git::Commit
       name: '@Git/Commit'
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::Git::Tag
       name: '@Git/Tag'
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::Git::Push
       name: '@Git/Push'
-      version: 2.004
+      version: 2.005
     -
       class: Dist::Zilla::Plugin::Git::CheckFor::CorrectBranch
       name: GitBranch
@@ -153,11 +152,11 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::TestRelease
       name: TestRelease
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::UploadToCPAN
       name: UploadToCPAN
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::ArchiveRelease
       name: ArchiveRelease
@@ -165,41 +164,41 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::ConfirmRelease
       name: ConfirmRelease
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::AutoPrereqs
       name: AutoPrereqs
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::MetaNoIndex
       name: MetaNoIndex
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':InstallModules'
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':IncModules'
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':TestFiles'
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ExecFiles'
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ShareFiles'
-      version: 4.300028
+      version: 4.300029
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':MainModule'
-      version: 4.300028
+      version: 4.300029
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
       is_trial: 1
-    version: 4.300028
+    version: 4.300029
