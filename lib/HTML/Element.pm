@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.902'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.903'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -17,6 +17,8 @@ use integer;    # vroom vroom!
 # A value of undef means to auto-detect encoding.
 # The empty string means to use :raw mode (the old default).
 our $default_encoding;
+$default_encoding = $ENV{PERL_HTML_TREE_ENCODING}
+    unless defined $default_encoding;
 
 # This controls encoding entities on output.
 # When set entities won't be re-encoded.
@@ -2853,8 +2855,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.902 of
-HTML::Element, released March 1, 2013
+This document describes version 5.903 of
+HTML::Element, released June 1, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods introduced in version 4.0 or later are marked with the version
@@ -3282,8 +3284,12 @@ working in the future.
 C<(v6.00)>
 Returns (optionally sets) the "_encoding" attribute.  This attribute
 is normally found only on the root C<< <html> >> node.  Its default
-value is taken from C<$HTML::Element::default_encoding>, which is
-C<undef> by default.
+value is taken from C<$HTML::Element::default_encoding>, which itself
+defaults to C<$ENV{PERL_HTML_TREE_ENCODING}>.  But that environment
+variable is read only once when this module is loaded; Perl code
+should set C<$HTML::Element::default_encoding> directly.  Normally,
+that variable is not set, so the default value is C<undef> (meaning
+auto-detect the encoding).
 
 The value is a string: the name of a Perl encoding understood by
 L<Encode>, with C<:BOM> appended if the file began with a Unicode

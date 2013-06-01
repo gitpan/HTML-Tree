@@ -1,5 +1,13 @@
 Changelog for HTML-Tree
 
+5.903    2013-06-01
+   Trial Release by Christopher J. Madsen
+
+    [ENHANCEMENTS]
+    * $HTML::Element::default_encoding gets its default value from
+      $ENV{PERL_HTML_TREE_ENCODING}, so you can restore the old behavior
+      without modifying any code (just export PERL_HTML_TREE_ENCODING='').
+
 5.902    2013-03-01
    Trial Release by Christopher J. Madsen
 

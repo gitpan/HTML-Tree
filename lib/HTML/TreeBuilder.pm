@@ -9,7 +9,7 @@ use integer;    # vroom vroom!
 use Carp ();
 use Scalar::Util qw(openhandle);
 
-our $VERSION = '5.902'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.903'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1816,8 +1816,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.902 of
-HTML::TreeBuilder, released March 1, 2013
+This document describes version 5.903 of
+HTML::TreeBuilder, released June 1, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods & attributes introduced in version 4.0 or later are marked
@@ -2140,11 +2140,14 @@ In TreeBuilder 6, the file is opened as defined by the TreeBuilder's
 C<encoding> attribute (L<HTML::Element/encoding>).  If not explicitly
 set, it is initialized from C<$HTML::Element::default_encoding> when
 the TreeBuilder is constructed (not when C<parse_file> is called).
+C<$HTML::Element::default_encoding> itself defaults to the value
+of C<$ENV{PERL_HTML_TREE_ENCODING}> when HTML::Element is loaded.
 
 If C<encoding> is C<undef> (the default), TreeBuilder opens the file
 using L<IO::HTML> (which uses the HTML5 encoding sniffing algorithm to
 automatically detect the file's encoding) and sets the C<encoding>
-attribute to the encoding used.
+attribute to the encoding used.  To restore the previous behavior of
+opening files in binary mode, set C<encoding> to the empty string.
 
 The return value is C<undef> if there's an error opening the file.  In
 that case, the error will be in C<$!>.
