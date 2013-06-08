@@ -1,5 +1,11 @@
 Changelog for HTML-Tree
 
+5.904    2013-06-08
+   Trial Release by Christopher J. Madsen
+
+    [FIXES]
+    * as_text would infinite loop if it encountered undef (RT #83757)
+
 5.903    2013-06-01
    Trial Release by Christopher J. Madsen
 

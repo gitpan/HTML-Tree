@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.903'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.904'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -1158,7 +1158,7 @@ sub as_text {
     my $text = '';
     while (@pile) {
         if ( !defined( $pile[0] ) ) {    # undef!
-                                         # no-op
+            shift @pile;                 # how did that get in here?
         }
         elsif ( !ref( $pile[0] ) ) {     # text bit!  save it!
             $text .= shift @pile;
@@ -2855,8 +2855,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.903 of
-HTML::Element, released June 1, 2013
+This document describes version 5.904 of
+HTML::Element, released June 8, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods introduced in version 4.0 or later are marked with the version
