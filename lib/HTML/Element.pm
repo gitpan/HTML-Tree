@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.904'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.905'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -1255,7 +1255,7 @@ sub _xml_escape {
                 =~ s/&(?!                 # An ampersand that isn't followed by...
                 (\#\d+; |                 # A hash mark, digits and semicolon, or
                 \#x[\da-f]+; |            # A hash mark, "x", hex digits and semicolon, or
-                $START_CHAR$NAME_CHAR+; ) # A valid unicode entity name and semicolon
+                $START_CHAR$NAME_CHAR*; ) # A valid unicode entity name and semicolon
            )/&amp;/gx;    # Needs to be escaped to amp
         }
         else {
@@ -2829,7 +2829,7 @@ sub _valid_name {
     my $attr = shift
         or Carp::croak("sub valid_name requires an attribute name");
 
-    return (0) unless ( $attr =~ /^$START_CHAR$NAME_CHAR+$/ );
+    return (0) unless ( $attr =~ /^$START_CHAR$NAME_CHAR*$/ );
 
     return (1);
 }
@@ -2855,8 +2855,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.904 of
-HTML::Element, released June 8, 2013
+This document describes version 5.905 of
+HTML::Element, released June 29, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods introduced in version 4.0 or later are marked with the version

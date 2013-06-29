@@ -9,7 +9,7 @@ use integer;    # vroom vroom!
 use Carp ();
 use Scalar::Util qw(openhandle);
 
-our $VERSION = '5.904'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.905'; # TRIAL VERSION from OurPkgVersion
 
 #---------------------------------------------------------------------------
 # Make a 'DEBUG' constant...
@@ -1816,8 +1816,8 @@ HTML::TreeBuilder - Parser that builds a HTML syntax tree
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.904 of
-HTML::TreeBuilder, released June 8, 2013
+This document describes version 5.905 of
+HTML::TreeBuilder, released June 29, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods & attributes introduced in version 4.0 or later are marked

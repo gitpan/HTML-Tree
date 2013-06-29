@@ -8,7 +8,7 @@ use 5.008;
 use warnings;
 use strict;
 
-our $VERSION = '5.904'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.905'; # TRIAL VERSION from OurPkgVersion
 
 require Exporter;
 our @ISA    = qw(Exporter);
@@ -60,8 +60,8 @@ HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.904 of
-HTML::Parse, released June 8, 2013
+This document describes version 5.905 of
+HTML::Parse, released June 29, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
