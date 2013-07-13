@@ -8,13 +8,13 @@ use 5.008;
 use warnings;
 use strict;
 
-our $VERSION = '5.905'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.906'; # TRIAL VERSION from OurPkgVersion
 
 require Exporter;
 our @ISA    = qw(Exporter);
 our @EXPORT = qw(parse_html parse_htmlfile);
 
-# Backwards compatability
+# Backwards compatibility
 our $IMPLICIT_TAGS  = 1;
 our $IGNORE_UNKNOWN = 1;
 our $IGNORE_TEXT    = 0;
@@ -60,8 +60,8 @@ HTML::Parse - Deprecated, a wrapper around HTML::TreeBuilder
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.905 of
-HTML::Parse, released June 29, 2013
+This document describes version 5.906 of
+HTML::Parse, released July 13, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 =head1 SYNOPSIS
@@ -117,7 +117,7 @@ Implicit elements have the implicit() attribute set.
 
 =item $HTML::Parse::IGNORE_UNKNOWN
 
-This variable contols whether unknow tags should be represented as
+This variable controls whether unknown tags should be represented as
 elements in the parse tree.  Default is true.
 
 =item $HTML::Parse::IGNORE_TEXT

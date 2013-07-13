@@ -78,7 +78,7 @@
          "web" : "http://github.com/madsen/HTML-Tree"
       }
    },
-   "version" : "5.905",
+   "version" : "5.906",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.014002"
