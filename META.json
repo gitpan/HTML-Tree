@@ -78,7 +78,7 @@
          "web" : "http://github.com/madsen/HTML-Tree"
       }
    },
-   "version" : "5.906",
+   "version" : "5.907",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.014002"
@@ -117,7 +117,7 @@
          {
             "class" : "Dist::Zilla::Plugin::MatchManifest",
             "name" : "MatchManifest",
-            "version" : "4.00"
+            "version" : "4.01"
          },
          {
             "class" : "Dist::Zilla::Plugin::CheckChangesHasContent",
@@ -127,7 +127,7 @@
          {
             "class" : "Dist::Zilla::Plugin::Test::PrereqsFromMeta",
             "name" : "Test::PrereqsFromMeta",
-            "version" : "4.04"
+            "version" : "4.20"
          },
          {
             "class" : "Dist::Zilla::Plugin::PodSyntaxTests",
@@ -162,7 +162,7 @@
          {
             "class" : "Dist::Zilla::Plugin::TemplateCJM",
             "name" : "TemplateCJM",
-            "version" : "4.12"
+            "version" : "4.21"
          },
          {
             "class" : "Dist::Zilla::Plugin::PodWeaver",

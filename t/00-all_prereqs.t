@@ -48,6 +48,7 @@ TEST: {
 
     while (<META>) {
       last if /^\s*\},?\s*\z/;
+      next if /^\s*"[^"]+"\s*:\s*\{\s*\},?\s*\z/;
       ok(/^\s*"(.+)" : \{\s*\z/, "found relationship $phase $1") or last TEST;
       my $rel = $1;
 

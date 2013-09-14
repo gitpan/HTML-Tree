@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.906'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.907'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -1146,6 +1146,29 @@ sub as_HTML {
 
     return join( '', @html );
 }
+
+
+{ package # don't index this
+      HTML::Element::_content_as;
+  our @ISA = qw(HTML::Element);
+  sub new {
+      my ($class, $elt) = @_;
+      @ISA = ref $elt unless $ISA[0] eq ref $elt;
+      bless { %$elt }, $class;  # make a shallow copy
+  }
+  sub starttag { '' }
+  *endtag = *starttag_XML = *endtag_XML = *DESTROY = \&starttag;
+}
+
+sub content_as_HTML
+{
+    HTML::Element::_content_as->new(shift)->as_HTML(@_);
+} # end content_as_HTML
+
+sub content_as_XML
+{
+    HTML::Element::_content_as->new(shift)->as_XML(@_);
+} # end content_as_XML
 
 
 sub as_text {
@@ -2855,8 +2878,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.906 of
-HTML::Element, released July 13, 2013
+This document describes version 5.907 of
+HTML::Element, released September 13, 2013
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods introduced in version 4.0 or later are marked with the version
@@ -3738,6 +3761,19 @@ Otherwise, possibly consider copying C<%HTML::Tagset::optionalEndTag> to a
 hash of your own, adding or deleting values as you like, and passing
 a reference to that hash.
 
+=head2 content_as_HTML
+
+  $s = $h->content_as_HTML();
+  $s = $h->content_as_HTML($entities);
+  $s = $h->content_as_HTML($entities, $indent_char);
+  $s = $h->content_as_HTML($entities, $indent_char, \%optional_end_tags);
+
+C<(v6.00)>
+Returns a string representing in HTML the element's descendants.
+Takes the same arguments as L</as_html>.  This is like the DOM's
+C<innerHTML> property, except that it can't be used to set the
+content.  (Use C<< $h->delete_content->push_content(...) >> for that.)
+
 =head2 as_text
 
   $s = $h->as_text();
@@ -3781,6 +3817,15 @@ C<[:alpha:]>, and character class escapes like C<\p{Zs}>.
   $s = $h->as_XML()
 
 Returns a string representing in XML the element and its descendants.
+
+The XML is not indented.
+
+=head2 content_as_XML
+
+  $s = $h->content_as_XML();
+
+C<(v6.00)>
+Returns a string representing in XML the element's descendants.
 
 The XML is not indented.
 
