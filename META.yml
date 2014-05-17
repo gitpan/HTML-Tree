@@ -11,7 +11,7 @@ build_requires:
 configure_requires:
   Module::Build: 0.2808
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.300034, CPAN::Meta::Converter version 2.120921'
+generated_by: 'Dist::Zilla version 5.009, CPAN::Meta::Converter version 2.120921'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -36,35 +36,44 @@ requires:
   perl: 5.008
 resources:
   repository: git://github.com/madsen/HTML-Tree.git
-version: 5.907
+version: 5.908
 x_Dist_Zilla:
   perl:
-    version: 5.014002
+    version: 5.018001
   plugins:
     -
       class: Dist::Zilla::Plugin::Git::GatherDir
+      config:
+        Dist::Zilla::Plugin::Git::GatherDir:
+          include_untracked: 1
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: Git::GatherDir
-      version: 2.013
+      version: 2.021
+    -
+      class: Dist::Zilla::Plugin::Encoding
+      name: Encoding
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::ManifestSkip
       name: ManifestSkip
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::MetaJSON
       name: MetaJSON
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::MetaYAML
       name: MetaYAML
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::MetaConfig
       name: MetaConfig
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::License
       name: License
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::MatchManifest
       name: MatchManifest
@@ -72,19 +81,19 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::CheckChangesHasContent
       name: CheckChangesHasContent
-      version: 0.005
+      version: 0.006
     -
       class: Dist::Zilla::Plugin::Test::PrereqsFromMeta
       name: Test::PrereqsFromMeta
-      version: 4.20
+      version: 4.21
     -
       class: Dist::Zilla::Plugin::PodSyntaxTests
       name: PodSyntaxTests
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::PodCoverageTests
       name: PodCoverageTests
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::ModuleBuild::Custom
       name: ModuleBuild::Custom
@@ -92,71 +101,241 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::RecommendedPrereqs
       name: RecommendedPrereqs
-      version: 4.06
+      version: 4.21
     -
       class: Dist::Zilla::Plugin::CheckPrereqsIndexed
       name: CheckPrereqsIndexed
-      version: 0.006
+      version: 0.009
     -
       class: Dist::Zilla::Plugin::OurPkgVersion
       name: OurPkgVersion
-      version: 0.004000
+      version: 0.005001
     -
       class: Dist::Zilla::Plugin::TemplateCJM
       name: TemplateCJM
-      version: 4.21
+      version: 4.22
     -
       class: Dist::Zilla::Plugin::PodWeaver
+      config:
+        Dist::Zilla::Plugin::PodWeaver:
+          finder:
+            - FilesToWeave
+          plugins:
+            -
+              class: Pod::Weaver::Plugin::EnsurePod5
+              name: '@CorePrep/EnsurePod5'
+              version: 4.005
+            -
+              class: Pod::Weaver::Plugin::H1Nester
+              name: '@CorePrep/H1Nester'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Name
+              name: Name
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Version
+              name: Version
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: VERSION
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Region
+              name: prelude
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Generic
+              name: SYNOPSIS
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Generic
+              name: DESCRIPTION
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Collect
+              name: ATTRIBUTES
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: 'Over ATTRIBUTES'
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Collect
+              name: METHODS
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: 'Over METHODS'
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Generic
+              name: 'HOW WE REPRESENT TREES'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'BASIC METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'STRUCTURE-MODIFYING METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: 'Over STRUCTURE-MODIFYING METHODS'
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'DUMPING METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'SECONDARY STRUCTURAL METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: 'Over SECONDARY STRUCTURAL METHODS'
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'CLASS METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Collect
+              name: 'INTERNAL METHODS'
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: 'Over INTERNAL METHODS'
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Collect
+              name: SUBROUTINES
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Leftovers
+              name: Leftovers
+              version: 4.005
+            -
+              class: Pod::Weaver::Section::Template
+              name: AUTHOR
+              version: 0.02
+            -
+              class: Pod::Weaver::Section::Template
+              name: 'COPYRIGHT AND LICENSE'
+              version: 0.02
+            -
+              class: Pod::Weaver::Section::AllowOverride
+              name: COPYRIGHT
+              version: 0.05
+            -
+              class: Pod::Weaver::Section::Region
+              name: postlude
+              version: 4.005
+            -
+              class: Pod::Weaver::Plugin::EnsureUniqueSections
+              name: '-EnsureUniqueSections'
+              version: 0.121550
       name: PodWeaver
-      version: 3.101641
+      version: 4.002
     -
       class: Dist::Zilla::Plugin::FileFinder::Filter
       name: FilesToWeave
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::Repository
       name: Repository
-      version: 0.18
+      version: 0.19
     -
       class: Dist::Zilla::Plugin::NextRelease
       name: NextRelease
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
+      config:
+        Dist::Zilla::Plugin::Git::NextVersion:
+          first_version: 0.001
+          version_by_branch: 0
+          version_regexp: '(?^u:^(\d+\.[\d_]+)(?:-TRIAL)?$)'
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: Git::NextVersion
-      version: 2.013
+      version: 2.021
     -
       class: Dist::Zilla::Plugin::Git::Check
+      config:
+        Dist::Zilla::Plugin::Git::Check:
+          untracked_files: die
+        Dist::Zilla::Role::Git::DirtyFiles:
+          allow_dirty:
+            - Changes
+          allow_dirty_match: []
+          changelog: Changes
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: '@Git/Check'
-      version: 2.013
+      version: 2.021
     -
       class: Dist::Zilla::Plugin::Git::Commit
+      config:
+        Dist::Zilla::Plugin::Git::Commit:
+          add_files_in: []
+          commit_msg: 'Updated Changes for %{MMMM d, yyyy}d%{ trial}t release of %v'
+          time_zone: local
+        Dist::Zilla::Role::Git::DirtyFiles:
+          allow_dirty:
+            - Changes
+          allow_dirty_match: []
+          changelog: Changes
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: '@Git/Commit'
-      version: 2.013
+      version: 2.021
     -
       class: Dist::Zilla::Plugin::Git::Tag
+      config:
+        Dist::Zilla::Plugin::Git::Tag:
+          branch: ~
+          signed: 0
+          tag: 5.908-TRIAL
+          tag_format: '%v%t'
+          tag_message: 'Tagged %N %v%{ (trial release)}t'
+          time_zone: local
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: '@Git/Tag'
-      version: 2.013
+      version: 2.021
     -
       class: Dist::Zilla::Plugin::Git::Push
+      config:
+        Dist::Zilla::Plugin::Git::Push:
+          push_to:
+            - 'github master'
+          remotes_must_exist: 1
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: '@Git/Push'
-      version: 2.013
+      version: 2.021
     -
       class: Dist::Zilla::Plugin::Git::CheckFor::CorrectBranch
+      config:
+        Dist::Zilla::Role::Git::Repo:
+          repo_root: '.'
       name: GitBranch
-      version: 0.004
+      version: 0.011
     -
       class: Dist::Zilla::Plugin::RunExtraTests
       name: RunExtraTests
-      version: 0.007
+      version: 0.011
     -
       class: Dist::Zilla::Plugin::TestRelease
       name: TestRelease
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::UploadToCPAN
       name: UploadToCPAN
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::ArchiveRelease
       name: ArchiveRelease
@@ -164,41 +343,49 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::ConfirmRelease
       name: ConfirmRelease
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::AutoPrereqs
       name: AutoPrereqs
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::MetaNoIndex
       name: MetaNoIndex
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':InstallModules'
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':IncModules'
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':TestFiles'
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ExecFiles'
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ShareFiles'
-      version: 4.300034
+      version: 5.009
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':MainModule'
-      version: 4.300034
+      version: 5.009
+    -
+      class: Dist::Zilla::Plugin::FinderCode
+      name: ':AllFiles'
+      version: 5.009
+    -
+      class: Dist::Zilla::Plugin::FinderCode
+      name: ':NoFiles'
+      version: 5.009
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
       is_trial: 1
-    version: 4.300034
+    version: 5.009

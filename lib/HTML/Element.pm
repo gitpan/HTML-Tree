@@ -5,7 +5,7 @@ package HTML::Element;
 use strict;
 use warnings;
 
-our $VERSION = '5.907'; # TRIAL VERSION from OurPkgVersion
+our $VERSION = '5.908'; # TRIAL VERSION from OurPkgVersion
 
 use Carp           ();
 use HTML::Entities ();
@@ -1371,6 +1371,43 @@ sub as_Lisp_form {
 }
 
 
+sub as_lol {
+    my ( $self ) = @_;
+
+    # The contents will be lols as well, or text strings
+    # Yes, even comments, processing instructions and the like.
+    my @contents = map {
+        ref($_) ? $_->as_lol() : $_;
+    } @{$self->{_content} || []};
+
+    # The attributes are those keys of %$self without a special
+    # name:
+    my @real_keys = grep {
+       $_ ne '_tag' and $_ ne '_name' and $_ ne '_content' and $_ ne '_parent'
+    } keys %$self;
+
+    # Copy via hash (ref) slicing
+    my %attributes = ();
+    @attributes{@real_keys} = @{$self}{@real_keys};
+
+    # The finished lol
+    return [
+        $self->{_tag},
+        (@real_keys ? (\%attributes) : ()),
+        @contents,
+    ];
+}
+
+
+sub content_as_lol {
+    my ( $self ) = @_;
+    my $lol = $self->as_lol();
+    shift @$lol; # tag
+    shift @$lol if ref($lol->[0]) eq 'HASH'; # attributes
+    return @$lol; # children, if any
+}
+
+
 sub format {
     my ( $self, $formatter ) = @_;
     unless ( defined $formatter ) {
@@ -1472,7 +1509,7 @@ sub starttag_XML {
             $name = $self->{'text'};
         }
         $name =~ s/--/-&#45;/g;    # can't have double --'s in XML comments
-        return "<!-- $name -->";
+        return "<!--$name-->";
     }
 
     my $tag = "<$name";
@@ -2878,8 +2915,8 @@ HTML::Element - Class for objects that represent HTML elements
 =head1 VERSION
 
 B<This is a development release for testing purposes only.>
-This document describes version 5.907 of
-HTML::Element, released September 13, 2013
+This document describes version 5.908 of
+HTML::Element, released May 17, 2014
 as part of L<HTML-Tree|HTML::Tree>.
 
 Methods introduced in version 4.0 or later are marked with the version
@@ -3844,6 +3881,44 @@ Current example output for a given element:
 
   ("_tag" "img" "border" "0" "src" "pie.png" "usemap" "#main.map")
 
+=head2 as_lol
+
+  $a = $h->as_lol();
+
+C<(v6.00)>
+Returns an arrayref representation of the passed element, in the same
+format that L</new_from_lol> expects: a reference to an array
+containing the tag name as a string, a hash reference describing the
+attributes of the element, and the children of the element (recursively);
+in that order.
+
+Children which are elements themselves become array references, while
+text children become simple text strings.
+
+Note that while L</new_from_lol> can take any number of attribute hashrefs,
+in any position of the array, this method always places all attributes
+in a single hash reference as the second element of the array.
+This mimics the relative positions of attributes and children in actual HTML.
+
+If an element has no attributes, no attribute hashref is created. It is easy
+enough to test for this case, however, since the hashref would have to appear
+in second position in the array.
+
+Example:
+
+  <a href="/index.html"><b>Next &gt;&gt;</b> Home</a>
+  ->
+  ['a', { href => '/index.html'}, ['b', 'Next >>'], ' Home'];
+
+=head2 content_as_lol
+
+  @a = $h->content_as_lol();
+
+C<(v6.00)>
+Returns the contents of an element as a list of array references or strings,
+depending on whether each content is an element or plain text.
+Note that an element can have 0 or more children; C<@a> might even be empty.
+
 =head2 format
 
   $s = $h->format; # use HTML::FormatText
@@ -4680,7 +4755,7 @@ Former maintainers:
 =back
 
 You can follow or contribute to HTML-Tree's development at
-L<< http://github.com/madsen/HTML-Tree >>.
+L<< https://github.com/madsen/HTML-Tree >>.
 
 =head1 COPYRIGHT AND LICENSE
 
