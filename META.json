@@ -78,7 +78,7 @@
          "web" : "https://github.com/madsen/HTML-Tree"
       }
    },
-   "version" : "5.908",
+   "version" : "5.909",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.018001"
@@ -414,7 +414,7 @@
                "Dist::Zilla::Plugin::Git::Tag" : {
                   "branch" : null,
                   "signed" : 0,
-                  "tag" : "5.908-TRIAL",
+                  "tag" : "5.909-TRIAL",
                   "tag_format" : "%v%t",
                   "tag_message" : "Tagged %N %v%{ (trial release)}t",
                   "time_zone" : "local"
